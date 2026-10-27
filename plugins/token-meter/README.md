@@ -1,6 +1,9 @@
 # token-meter
 
-대화 기록의 각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 보여 주는 Claude Code Mod입니다.
+A Claude Code mod that shows token counts in the transcript.  
+The input tokens of each turn appear under its prompt, and the output tokens appear under the turn's last reply.
+
+Read this in [한글](./README.ko.md).
 
 ```plaintext
 > 이 버그를 고쳐 줄래
@@ -10,38 +13,44 @@
   output 2,400 tokens
 ```
 
-## 설치
+## Install
 
 ```plaintext
 /plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 ```
 
-`Add marketplace?`에 `y`로 답하고 설치 범위를 고르면 바로 동작합니다. 다른 설치 방법은 [저장소 README](../../README.md#설치)를 참고하세요.
+Answer `y` to `Add marketplace?` and pick a scope, and the plugin starts working right away.  
+For other ways to install, see the [repository README](../../README.md#install).
 
-## 표시 항목
+## What it shows
 
-| 항목              | 뜻                                                                                                                                                          |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prompt ~N`       | 입력한 글을 글자 수로 어림한 토큰(한글 1글자 약 1.35토큰, 그 밖의 글자는 3.2자에 1토큰, Opus 5.5 실측)                                                      |
-| `context N`       | 이 입력이 컨텍스트에 실제로 더한 토큰. 턴의 첫 요청 입력에서 직전 요청의 입력과 출력을 뺀 값으로, 첫 턴과 압축, `/clear` 직후에는 생략                      |
-| `total input N`   | 이 턴에 서버로 보낸 입력 토큰의 합. 요청마다 시스템 프롬프트와 지난 대화 전체를 다시 보내므로, 요청별 전체 입력(input + cache read + cache write)을 더한 값 |
-| `n requests`      | 이 턴의 요청 횟수. 도구를 쓸 때마다 늘어납니다.                                                                                                             |
-| `cached HH:MM:SS` | 이 입력을 실은 첫 요청에 서버가 응답을 시작한 시각(이 컴퓨터의 시간대). 그때 프롬프트 캐시에 쓰여 있습니다.                                                 |
-| `output N`        | 그 턴의 모든 요청이 낸 출력 토큰의 합(생각과 도구 호출 포함)                                                                                                |
+- `prompt ~N`: tokens estimated from the length of what you typed.  
+  Hangul counts as about 1.35 tokens per character, and other characters as 1 token per 3.2 characters (measured on Opus 5.5).
+- `context N`: the tokens this prompt actually added to the context.  
+  It is the input of the turn's first request minus the input and output of the request before it.  
+  It is left out on the first turn and right after compaction or `/clear`.
+- `total input N`: the sum of the input tokens sent to the server during the turn.  
+  Every request resends the system prompt and the whole conversation so far.  
+  So this adds up each request's full input (input + cache read + cache write).
+- `n requests`: how many requests the turn made.  
+  It goes up each time Claude uses a tool.
+- `cached HH:MM:SS`: when the server started answering the first request that carried this prompt, in this computer's time zone.  
+  By then the prompt has been written to the prompt cache.
+- `output N`: the output tokens of every request in the turn, thinking and tool calls included.
 
-- 응답이 오기 전에는 `prompt ~N tokens`만 보이고, 응답이 오면 나머지가 채워집니다.
-- 서브에이전트의 요청은 세지 않습니다.
-- 슬래시 명령 줄과 알림 줄에는 표시하지 않습니다.
+Before the first response arrives, only `prompt ~N tokens` shows.  
+The rest fills in once the response comes in.  
+Subagent requests are not counted, and slash command and notification rows are left alone.
 
-## 끄기
+## Turning it off
 
-`/plugin`에서 token-meter를 끄거나, 셸에서 다음 명령을 실행합니다.
+Turn off token-meter in `/plugin`, or run this in a shell.
 
 ```bash
 claude plugin disable token-meter@heropy-plugins
 ```
 
-## 개발
+## Development
 
 ```bash
 claude plugin validate plugins/token-meter

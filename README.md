@@ -1,32 +1,37 @@
 # heropy-plugins
 
-[HEROPY](https://heropy.dev)의 Claude Code 플러그인 모음입니다.
+Claude Code plugins by [HEROPY](https://heropy.dev).
 
-## 설치
+Read this in [한글](./README.ko.md).
 
-Claude Code 터미널 세션의 프롬프트에서 원하는 플러그인을 하나씩 설치합니다.
+## Install
+
+Install each plugin you want from the prompt of a Claude Code terminal session.
 
 ```plaintext
 /plugin install prompt-translator --marketplace ParkYoungWoong/claude-plugins
 /plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 ```
 
-처음 설치할 때 `Add marketplace?`를 물으면 `y`로 답하고, 설치 범위를 고른 뒤 Enter를 누릅니다. 맨 위의 user 범위로 설치하면 지금 세션에서 바로 동작하고, 이후에 여는 모든 세션에서도 동작합니다.
+The first install asks `Add marketplace?`, so answer `y`, pick a scope, and press Enter.  
+With the user scope at the top of the list, the plugin works in the current session right away and in every session you open after that.
 
-셸에서 설치할 때:
+From a shell:
 
 ```bash
 claude plugin install prompt-translator --marketplace ParkYoungWoong/claude-plugins
 claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 ```
 
-데스크톱 앱에서는 `/plugin`을 쓸 수 없으니, 입력창 옆의 + 단추를 누르고 Plugins > Add marketplace에 `ParkYoungWoong/claude-plugins`를 입력한 뒤 Add plugin으로 설치합니다.
+The desktop app doesn't run `/plugin`.  
+Click the + button next to the prompt box, choose Plugins > Add marketplace, enter `ParkYoungWoong/claude-plugins`, and install with Add plugin.
 
-## 플러그인 목록
+## Plugins
 
 ### [prompt-translator](./plugins/prompt-translator)
 
-입력한 한글 프롬프트를 원어민이 쓰는 자연스러운 영어로 번역해 프롬프트 바로 밑에 보여 줍니다. 번역은 보기 전용이고, Claude는 한글 원문을 그대로 처리합니다.
+Translates the Korean prompts you type into natural English and shows the translation right under each prompt.  
+The translation is only for reading, and Claude still works from your original Korean prompt.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
@@ -35,7 +40,7 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 
 ### [token-meter](./plugins/token-meter)
 
-각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 보여 줍니다.
+Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
@@ -45,10 +50,11 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
   output 2,400 tokens
 ```
 
-## 요구 사항
+## Requirements
 
-두 플러그인 모두 훅 모듈로 동작하는 Mod라서, Mod를 지원하는 Claude Code가 필요합니다. Claude Code 2.1.311의 터미널 전체 화면(fullscreen) 모드에서 확인했습니다.
+Both plugins are mods, plugins that run as a hooks module, so they need a version of Claude Code that supports mods.  
+They were tested on Claude Code 2.1.311 in the terminal's fullscreen mode.
 
-## 라이선스
+## License
 
 [MIT](./LICENSE)
