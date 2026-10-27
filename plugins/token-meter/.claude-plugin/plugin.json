@@ -1,0 +1,14 @@
+{
+  "name": "token-meter",
+  "version": "0.5.0",
+  "description": "대화의 각 입력과 출력 바로 밑에 사용한 토큰 수를 보여 준다",
+  "author": {
+    "name": "ParkYoungWoong",
+    "url": "https://heropy.dev"
+  },
+  "homepage": "https://github.com/ParkYoungWoong/claude-plugins/tree/main/plugins/token-meter",
+  "repository": "https://github.com/ParkYoungWoong/claude-plugins",
+  "license": "MIT",
+  "keywords": ["tokens", "usage", "prompt-cache", "mod"],
+  "types": "./types/index.d.ts"
+}

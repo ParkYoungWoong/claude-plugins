@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "heropy-plugins",
+  "description": "A collection of Claude Code plugins by HEROPY.",
+  "owner": {
+    "name": "ParkYoungWoong",
+    "url": "https://heropy.dev"
+  },
+  "plugins": [
+    {
+      "name": "prompt-translator",
+      "source": "./plugins/prompt-translator",
+      "description": "입력한 한글 프롬프트를 자연스러운 영어로 번역해 프롬프트 바로 밑에 보여 준다",
+      "category": "productivity"
+    },
+    {
+      "name": "token-meter",
+      "source": "./plugins/token-meter",
+      "description": "대화의 각 입력과 출력 바로 밑에 사용한 토큰 수를 보여 준다",
+      "category": "productivity"
+    }
+  ]
+}

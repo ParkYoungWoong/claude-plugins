@@ -1,0 +1,14 @@
+{
+  "name": "prompt-translator",
+  "version": "0.4.0",
+  "description": "입력한 한글 프롬프트를 자연스러운 영어로 번역해 프롬프트 바로 밑에 보여 준다",
+  "author": {
+    "name": "ParkYoungWoong",
+    "url": "https://heropy.dev"
+  },
+  "homepage": "https://github.com/ParkYoungWoong/claude-plugins/tree/main/plugins/prompt-translator",
+  "repository": "https://github.com/ParkYoungWoong/claude-plugins",
+  "license": "MIT",
+  "keywords": ["translation", "korean", "english", "mod"],
+  "types": "./types/index.d.ts"
+}
