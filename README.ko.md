@@ -24,14 +24,17 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 ```
 
 데스크톱 앱에서는 `/plugin`을 쓸 수 없습니다.  
-입력창 옆의 + 단추를 누르고 Plugins > Add marketplace에 `ParkYoungWoong/claude-plugins`를 입력한 뒤 Add plugin으로 설치합니다.
+입력창 옆의 + 단추에서 `플러그인 추가`를 고르고, `추가 > 마켓플레이스 추가`에 `ParkYoungWoong/claude-plugins`를 입력한 뒤 `동기화`를 누릅니다.  
+그다음 `탐색` 탭에서 플러그인을 찾아 `이 컴퓨터에 추가`를 누릅니다.  
+단계별 화면은 [prompt-translator 문서](./plugins/prompt-translator/README.ko.md#클로드-데스크톱-앱)에 있습니다.
 
 ## 플러그인 목록
 
 ### [prompt-translator](./plugins/prompt-translator/README.ko.md)
 
-입력한 한글 프롬프트를 원어민이 쓰는 자연스러운 영어로 번역해 프롬프트 바로 밑에 보여 줍니다.  
-번역은 보기 전용이고, Claude는 한글 원문을 그대로 처리합니다.
+입력한 프롬프트를 고른 언어로 번역해 프롬프트 바로 밑에 보여 줍니다.  
+언어는 설치할 때 English (US), English (UK), 한글, 日本語, 中文 (简体), Español 중에서 고르고, 기본값은 English (US)입니다.  
+번역은 보기 전용이고, Claude는 입력한 원문을 그대로 처리합니다.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘

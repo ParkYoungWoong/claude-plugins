@@ -24,14 +24,17 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 ```
 
 The desktop app doesn't run `/plugin`.  
-Click the + button next to the prompt box, choose Plugins > Add marketplace, enter `ParkYoungWoong/claude-plugins`, and install with Add plugin.
+Click the + button next to the prompt box and choose Add plugins, then choose Add > Add marketplace, enter `ParkYoungWoong/claude-plugins`, and click Sync.  
+Find the plugin in the Discover tab and click Add to this computer.  
+See the [prompt-translator README](./plugins/prompt-translator/README.md#claude-desktop-app) for screenshots of each step.
 
 ## Plugins
 
 ### [prompt-translator](./plugins/prompt-translator)
 
-Translates the Korean prompts you type into natural English and shows the translation right under each prompt.  
-The translation is only for reading, and Claude still works from your original Korean prompt.
+Translates the prompts you type into the language you choose and shows the translation right under each prompt.  
+You pick the language when you install it: English (US), English (UK), 한글, 日本語, 中文 (简体) or Español, with English (US) as the default.  
+The translation is only for reading, and Claude still works from your original prompt.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘

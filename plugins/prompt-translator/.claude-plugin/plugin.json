@@ -1,7 +1,7 @@
 {
   "name": "prompt-translator",
-  "version": "0.5.0",
-  "description": "입력한 한글 프롬프트를 자연스러운 영어로 번역해 프롬프트 바로 밑에 보여 준다",
+  "version": "0.6.0",
+  "description": "Translates the prompts you type into the language you choose and shows the translation right under each prompt",
   "author": {
     "name": "ParkYoungWoong",
     "url": "https://heropy.dev"
@@ -9,6 +9,15 @@
   "homepage": "https://github.com/ParkYoungWoong/claude-plugins/tree/main/plugins/prompt-translator",
   "repository": "https://github.com/ParkYoungWoong/claude-plugins",
   "license": "MIT",
-  "keywords": ["translation", "korean", "english", "mod"],
-  "types": "./types/index.d.ts"
+  "keywords": ["translation", "korean", "english", "japanese", "chinese", "spanish", "mod"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Translation language",
+      "description": "The language your prompts are translated into. Prompts already written in it are not translated.",
+      "default": "English (US)",
+      "options": ["English (US)", "English (UK)", "한글", "日本語", "中文 (简体)", "Español"]
+    }
+  }
 }

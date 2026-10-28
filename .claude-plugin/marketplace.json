@@ -10,13 +10,13 @@
     {
       "name": "prompt-translator",
       "source": "./plugins/prompt-translator",
-      "description": "입력한 한글 프롬프트를 자연스러운 영어로 번역해 프롬프트 바로 밑에 보여 준다",
+      "description": "Translates the prompts you type into the language you choose and shows the translation right under each prompt",
       "category": "productivity"
     },
     {
       "name": "token-meter",
       "source": "./plugins/token-meter",
-      "description": "대화의 각 입력과 출력 바로 밑에 사용한 토큰 수를 보여 준다",
+      "description": "Shows the tokens each turn used right under its prompt and its last reply",
       "category": "productivity"
     }
   ]

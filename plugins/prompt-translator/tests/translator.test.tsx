@@ -24,10 +24,11 @@ const SURFACES = ['terminal', 'desktop'] as const
 
 // 엔진 자리에 서서 번역 요청과 넘어간 프롬프트를 기록한다
 const engine = (on: On, reply = 'Translated.') => {
-  const seen = { prompts: [] as string[], passed: [] as string[] }
+  const seen = { prompts: [] as string[], systems: [] as string[], passed: [] as string[] }
   on('session.surfaces', () => ({ value: ['terminal'] }))
   on('model.complete', (_, e) => {
     seen.prompts.push(e.prompt)
+    seen.systems.push(String(e.system ?? ''))
 
     return { value: { isAnswered: true, text: reply, usage: ZERO } }
   })
@@ -72,6 +73,72 @@ test('한글 프롬프트는 원문 그대로 넘기고 번역을 그 프롬프�
     await other.unmount()
   }
 })
+
+test('기본 언어는 미국 영어이고, 영어로 쓴 글과 언어를 가릴 수 없는 짧은 글은 번역하지 않는다', async ($, on) => {
+  const seen = engine(on)
+
+  await submit($, 'Can you fix this bug?')
+  await submit($, 'continue')
+  await submit($, '¿Puedes arreglar este error?')
+
+  expect(seen.prompts).toEqual(['<message>\n¿Puedes arreglar este error?\n</message>'])
+  expect(seen.systems[0]).toContain('into American English.')
+})
+
+test(
+  '고른 언어로 번역하고, 이미 그 언어로 쓴 글은 번역하지 않는다',
+  { options: { language: '日本語' } },
+  async ($, on) => {
+    const seen = engine(on, 'このバグを直して')
+
+    await submit($, '이 버그 고쳐 줘')
+    await submit($, 'このバグを直してください')
+    await submit($, 'Can you fix this bug?')
+
+    expect(seen.prompts).toEqual([
+      '<message>\n이 버그 고쳐 줘\n</message>',
+      '<message>\nCan you fix this bug?\n</message>'
+    ])
+    expect(seen.systems[0]).toContain('into Japanese.')
+    const ui = await $.ui.mount({ ...row('이 버그 고쳐 줘'), surface: 'terminal' })
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[- 9(8)]')
+    await ui.unmount()
+  }
+)
+
+test(
+  '한글을 고르면 한글이 아닌 글을 한글로 번역한다',
+  { options: { language: '한글' } },
+  async ($, on) => {
+    const seen = engine(on, '이 버그 고쳐 줘')
+
+    await submit($, 'Can you fix this bug?')
+    await submit($, '이 버그 고쳐 줘')
+    await submit($, 'ok')
+    await submit($, '这个错误帮我修一下')
+
+    expect(seen.prompts).toEqual([
+      '<message>\nCan you fix this bug?\n</message>',
+      '<message>\n这个错误帮我修一下\n</message>'
+    ])
+    expect(seen.systems[0]).toContain('into Korean.')
+  }
+)
+
+test(
+  '영국 영어를 고르면 영국식 철자로 번역하게 한다',
+  { options: { language: 'English (UK)' } },
+  async ($, on) => {
+    const seen = engine(on)
+
+    await submit($, '색 정리해 줘')
+    await submit($, 'Please organize the colors.')
+
+    expect(seen.prompts).toHaveLength(1)
+    expect(seen.systems[0]).toContain('into British English.')
+    expect(seen.systems[0]).toContain('British spelling')
+  }
+)
 
 test('번역마다 아이콘으로 숨기고 다시 보인다', async ($, on) => {
   engine(on, 'Run the tests.')
@@ -184,7 +251,7 @@ test('번역에 실패하면 이유만 붙이고 원문은 그대로 넘어간�
 
   expect(passed).toEqual(['테스트 돌려 줘'])
   const ui = await $.ui.mount({ ...row('테스트 돌려 줘'), surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '번역하지 못했습니다 (API 오류 529)' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Could not translate (API error 529)' })).toBeDefined()
   await ui.unmount()
 })
 
@@ -227,13 +294,13 @@ test('번역을 기다리지 않고 원문을 바로 넘기고, 번역은 끝나
   // 번역이 아직 안 끝났는데 프롬프트는 이미 넘어갔다
   expect(passed).toEqual(['빌드해 줘'])
   const ui = await $.ui.mount({ ...row('빌드해 줘'), surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '번역 중...' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Translating...' })).toBeDefined()
 
   release()
   await submitting
   await wait(50)
   expect(await ui.find({ type: 'Text', text: 'Build it.' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '번역 중...' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Translating...' })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -422,7 +489,7 @@ test('화면이 붙기 전에 보낸 프롬프트는 화면이 붙을 때 번역
 
   await submit(
     $,
-    `<system-reminder>\nThe user started this session without a folder.\n</system-reminder>\n${typed}`,
+    `<system-reminder>\nThe user started this session without a folder.\n</system-reminder>\n\n\n${typed}`,
     'sdk'
   )
   expect(seen.prompts).toEqual([])

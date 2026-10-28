@@ -1,7 +1,7 @@
 {
   "name": "token-meter",
   "version": "0.6.0",
-  "description": "대화의 각 입력과 출력 바로 밑에 사용한 토큰 수를 보여 준다",
+  "description": "Shows the tokens each turn used right under its prompt and its last reply",
   "author": {
     "name": "ParkYoungWoong",
     "url": "https://heropy.dev"

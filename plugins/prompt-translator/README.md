@@ -1,7 +1,8 @@
 # prompt-translator
 
-A Claude Code mod that translates the Korean prompts you type into the natural English a native English-speaking developer would actually write.  
-The translation shows right under the prompt in the transcript.
+A Claude Code mod that translates the prompts you type into the language you choose, the way a native-speaking developer would actually write them.  
+The translation shows right under the prompt in the transcript.  
+You pick the language when you install it, and the default is American English.
 
 Read this in [한글](./README.ko.md).
 
@@ -12,26 +13,102 @@ Read this in [한글](./README.ko.md).
 
 ## Install
 
+### Claude Code CLI
+
+Run this from the prompt of a Claude Code terminal session.
+
 ```plaintext
 /plugin install prompt-translator --marketplace ParkYoungWoong/claude-plugins
 ```
 
-Answer `y` to `Add marketplace?` and pick a scope, and the plugin starts working right away.  
-For other ways to install, see the [repository README](../../README.md#install).
+1. The first install asks `Add marketplace?`.  
+   Press `y`.
+
+   <img src="./images/cli-install-1-marketplace.png" alt="Add marketplace? asking to add github:ParkYoungWoong/claude-plugins" width="883">
+
+2. Pick where to install it.  
+   With `Install for you (user scope)` at the top, it works in every session you open.
+
+   <img src="./images/cli-install-2-scope.png" alt="Plugin Details with the install scopes" width="883">
+
+3. Pick the translation language with ←/→ and press Enter, then press Enter again on `Save configuration`.
+
+   <img src="./images/cli-install-3-language.png" alt="Configure prompt-translator with Translation language set to English (US)" width="883">
+
+4. When you see `Installed and configured prompt-translator. Plugin is now active.`, it already works in the current session.  
+   Type a prompt, and the translation shows right under it.
+
+   <img src="./images/cli-translation.png" alt="A Korean prompt with its English translation shown under it" width="883">
+
+From a shell, pass the language with `--config`.
+
+```bash
+claude plugin install prompt-translator --marketplace ParkYoungWoong/claude-plugins --config language=日本語
+```
+
+### Claude desktop app
+
+The desktop app doesn't run `/plugin`, so install it from the plugin settings.
+
+1. Click the + button next to the prompt box and choose Add plugins.
+
+   <img src="./images/desktop-en-0-menu.png" alt="The + menu of the prompt box with Add plugins" width="768">
+
+2. Click Add at the top right, choose Add marketplace, enter `ParkYoungWoong/claude-plugins`, and click Sync.
+
+   <img src="./images/desktop-en-1-marketplace.png" alt="The Add marketplace dialog with ParkYoungWoong/claude-plugins entered" width="1022">
+
+3. In the Discover tab, find Prompt translator and click Add to this computer.  
+   Filtering by Source > heropy-plugins shows only the plugins from this marketplace.
+
+   <img src="./images/desktop-en-2-plugin.png" alt="Prompt translator with the Add to this computer button" width="1022">
+
+4. The desktop app doesn't ask for the language while installing, so it starts with English (US).  
+   To change it, open Prompt translator in the Yours tab, pick the Translation language in its Settings tab, and click Save.  
+   The new language applies to sessions you start after that.
+
+   <img src="./images/desktop-en-3-language.png" alt="The Settings tab of Prompt translator with the Translation language list open" width="1022">
+
+5. In a new session, the translation shows right under the prompt, just like in the terminal.
+
+   <img src="./images/desktop-en-4-translation.png" alt="A Korean prompt with its English translation in the desktop app" width="646">
+
+## Translation languages
+
+| Option | Translates into |
+| --- | --- |
+| `English (US)` (default) | American English |
+| `English (UK)` | British English (colour, organise, ...) |
+| `한글` | Korean |
+| `日本語` | Japanese |
+| `中文 (简体)` | Simplified Chinese |
+| `Español` | Spanish |
+
+Only prompts written in a language other than the one you chose are translated.  
+For example, with `한글` chosen, English prompts are translated into Korean, and Korean prompts are left alone.
+
+To change the language in the terminal, run `/config`, type `translation` to find `Translation language`, and pick a new one.  
+The mod reloads right away with the new language.
+
+<img src="./images/cli-config-language.png" alt="The Translation language list in /config" width="883">
+
+After switching to `日本語`, the same kind of prompt is translated into Japanese.
+
+<img src="./images/cli-translation-japanese.png" alt="A Korean prompt with its Japanese translation shown under it" width="883">
 
 ## How it works
 
 - The translation is only for reading.  
-  Claude still receives your original Korean prompt.
+  Claude still receives your original prompt.
 - Translation and Claude's work start at the same time.  
-  `번역 중...` (translating) shows under the prompt until the translation is ready, and then the same spot turns into the translation.
+  `Translating...` shows under the prompt until the translation is ready, and then the same spot turns into the translation.
 - The translation is attached to the prompt row, so it scrolls along with the transcript.
-- `[- 19(44)]` in front is the character count of the Korean prompt (spaces included), followed by the English translation's count in parentheses.  
+- `[- 19(44)]` in front is the character count of your prompt (spaces included), followed by the translation's count in parentheses.  
   Click it to hide that translation alone, and it turns into `[+ 19(44)]`.  
   Click it again to show the translation.
 - Code, file paths, commands, identifiers, URLs, @mentions, and anything inside backticks stay as written.  
   Quoted text meant to be used verbatim (an exact reply, a UI label, a commit message) also stays in its original language.
-- When a translation fails, only `번역하지 못했습니다 (reason)` (could not translate) is shown.  
+- When a translation fails, only `Could not translate (reason)` is shown.  
   Claude's work goes on as usual.
 - For a slash command that puts Claude to work, such as `/goal` or a skill, the text after the command (its arguments) is translated.  
   A command row has no spot a mod can draw under, so the translation shows right above Claude's first reply to that command.
@@ -40,7 +117,9 @@ For other ways to install, see the [repository README](../../README.md#install).
 
 ## When it doesn't translate
 
-- Prompts without any Hangul
+- Prompts already written in the language you chose
+- Prompts too short to tell the language from, such as `ok` or `continue`.  
+  Korean, Japanese and Chinese are told apart by their characters, and English and Spanish by common words.
 - Slash commands that finish without any work from Claude, such as `/rename`
 - Messages you didn't type yourself, such as task notifications
 - Runs without a screen (`claude -p`)
