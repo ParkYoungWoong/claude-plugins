@@ -38,6 +38,8 @@ const PASTE_MARK = /<\/?pasted_content[^>]*>\n?/g
 const REMINDER = /^(?:<system-reminder>[\s\S]*?<\/system-reminder>\s*)+/
 // 엔진이 기록하는 명령 줄: <command-name>/goal</command-name> <command-args>...</command-args>
 const COMMAND_NAME = /<command-name>\/?([^<]*)<\/command-name>/
+// 데스크톱 앱이 답변 블록을 묻는 id 의 끝(API 메시지 id 뒤의 블록 번호)
+const BLOCK_ID = /-t\d+$/
 
 type Language = { code: string; name: string; writer: string; style?: string }
 
@@ -467,7 +469,7 @@ export const register: Register = (on, options) => {
     } else if (e.door === 'response' && commandTurn && text.trim()) {
       const id = commandTurn.entryId
       commandTurn = undefined
-      await patchEntry($, id, () => ({ replyId: e.uuid }))
+      await patchEntry($, id, () => ({ replyId: e.uuid, replyText: text }))
     }
 
     return next(e)
@@ -508,8 +510,15 @@ export const register: Register = (on, options) => {
   })
 
   // 명령 줄(/goal ...)은 Mod 가 그릴 수 있는 자리가 아니어서, 그 명령이 시작한 턴의 첫 답변 위에 붙인다
+  // 데스크톱 앱은 답변을 기록 줄 id 가 아니라 API 메시지 id 와 블록 번호(msg_...-t0)로, 그 블록의 글과 함께
+  // 묻는다. 이 id 는 플러그인이 알 수 없어서, 그때는 줄의 글이 블록의 글과 같은지로 짝을 맞춘다
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
-    const entry = (await read($, entries)).find(one => one.replyId === e.requestId)
+    const isBlock = BLOCK_ID.test(e.requestId)
+    const text = e.props.text.trim()
+    const entry = (await read($, entries)).find(
+      one =>
+        one.replyId === e.requestId || (isBlock && text !== '' && one.replyText?.trim() === text)
+    )
     if (!entry) return next(e)
 
     const { Box } = $.ui.resolve(e)

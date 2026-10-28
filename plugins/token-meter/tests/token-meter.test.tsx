@@ -287,6 +287,35 @@ test('명령이 시작한 턴은 첫 답변 위에 입력 토큰을, 마지막 �
   }
 })
 
+test('데스크톱 앱이 API 메시지 id 와 블록 번호로 물어도 블록의 글로 짝을 맞춘다', async ($, on) => {
+  const server = engine(on, [usage(5, 20000, 300), usage(10, 20400, 120)])
+  const settle = prompts(on, $)
+
+  await command($, 'goal', '테스트 통과')
+  await settle()
+  await step($, server, 'turn-1', 0)
+  await respond($, 'reply-1', '목표를 확인했습니다.')
+  await step($, server, 'turn-1', 1)
+  await respond($, 'reply-2', '모두 통과했습니다.')
+  await complete($, 'turn-1', '모두 통과했습니다.')
+
+  const first = {
+    ...reply('목표를 확인했습니다.'),
+    requestId: 'msg_01A-t0',
+    surface: 'desktop'
+  } as const
+  expect((await textsOf($, first))[0]).toMatch(/^prompt ~9 /)
+  const last = {
+    ...reply('모두 통과했습니다.\n'),
+    requestId: 'msg_01B-t0',
+    surface: 'desktop'
+  } as const
+  expect(await textsOf($, last)).toEqual(['engine', 'output 420 tokens'])
+  // 글이 다른 블록에는 붙이지 않는다
+  const other = { ...reply('중간 설명'), requestId: 'msg_01B-t1', surface: 'desktop' } as const
+  expect(await textsOf($, other)).toEqual(['engine'])
+})
+
 test('같은 글을 두 번 보내도 줄 id 로 각자의 숫자를 보이고, 앞에 붙은 안내 블록은 뺀다', async ($, on) => {
   const server = engine(on, [usage(5, 20000, 300), usage(4, 20400, 50)])
   const settle = prompts(on, $)

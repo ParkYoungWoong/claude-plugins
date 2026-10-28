@@ -6,9 +6,11 @@ export type Turn = {
   rowId?: string
   // 명령(/goal, 스킬 등)으로 시작한 턴: 명령 줄에는 그릴 자리가 없어 첫 답변 위에 입력 토큰을 둔다
   isCommand?: boolean
-  // 턴 안에서 글을 쓴 첫 답변 줄과 마지막 답변 줄의 id
+  // 턴 안에서 글을 쓴 첫 답변 줄과 마지막 답변 줄의 id 와 글(데스크톱 앱은 줄 id 대신 글로 짝을 맞춘다)
   firstReplyId?: string
+  firstReplyText?: string
   lastReplyId?: string
+  lastReplyText?: string
   // 이 입력이 컨텍스트에 실제로 더한 토큰(첫 요청 입력 - 직전 요청 입력과 출력)
   added?: number
   // 서버로 보낸 입력 토큰: 턴 안의 요청마다 보낸 전체 입력(캐시 포함)의 합

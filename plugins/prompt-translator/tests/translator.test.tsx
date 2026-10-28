@@ -550,6 +550,20 @@ test('/goal 처럼 턴을 시작하는 명령은 인자를 번역해 그 턴의 
     expect((await shown(prompt)).includes('Translated.')).toBe(false)
     await prompt.unmount()
   }
+
+  // 데스크톱 앱은 API 메시지 id 와 블록 번호로 묻고, 그때는 블록의 글로 짝을 맞춘다
+  const block = await $.ui.mount({
+    ...answer('msg_01A-t0', '목표를 확인했습니다.\n'),
+    surface: 'desktop'
+  })
+  expect(await shown(block)).toContain('Translated.')
+  await block.unmount()
+  const otherBlock = await $.ui.mount({
+    ...answer('msg_01B-t0', '모두 통과했습니다.'),
+    surface: 'desktop'
+  })
+  expect((await shown(otherBlock)).includes('Translated.')).toBe(false)
+  await otherBlock.unmount()
 })
 
 test('명령 인자의 키워드는 명령이 실행되기 전에 빼고, 길어도 번역한다', async ($, on) => {

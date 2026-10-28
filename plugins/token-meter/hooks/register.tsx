@@ -20,6 +20,8 @@ const REMINDER = /^(?:<system-reminder>[\s\S]*?<\/system-reminder>\n?)+/
 const COMMAND_ROW = /^(?:\/|<command-)/
 const COMMAND_NAME = /<command-name>\/?([^<]*)<\/command-name>/
 const COMMAND_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
+// 데스크톱 앱이 답변 블록을 묻는 id 의 끝(API 메시지 id 뒤의 블록 번호)
+const BLOCK_ID = /-t\d+$/
 
 // 저장 형태가 바뀌면 태그를 올려 이전 버전이 남긴 값을 버린다
 const meter = atom(
@@ -160,7 +162,9 @@ export const register: Register = on => {
           turns: patchTurn(state, turnId, turn => ({
             ...turn,
             firstReplyId: turn.firstReplyId ?? e.uuid,
-            lastReplyId: e.uuid
+            firstReplyText: turn.firstReplyText ?? text,
+            lastReplyId: e.uuid,
+            lastReplyText: text
           }))
         }))
       }
@@ -251,12 +255,17 @@ export const register: Register = on => {
     if (!text) return next(e)
 
     const { turns } = await read($, meter)
+    // 데스크톱 앱은 답변을 기록 줄 id 가 아니라 API 메시지 id 와 블록 번호(msg_...-t0)로, 그 블록의 글과 함께
+    // 묻는다. 이 id 는 플러그인이 알 수 없어서, 그때는 줄의 글이 블록의 글과 같은지로 짝을 맞춘다
+    const isBlock = BLOCK_ID.test(e.requestId)
+    const isReply = (id?: string, replyText?: string) =>
+      id === e.requestId || (isBlock && replyText?.trim() === text)
     // 명령 줄(/goal ...)은 Mod 가 그릴 수 있는 자리가 아니어서 그 턴의 첫 답변 위에 둔다
-    const asked = turns.find(one => one.isCommand && one.firstReplyId === e.requestId)
+    const asked = turns.find(one => one.isCommand && isReply(one.firstReplyId, one.firstReplyText))
     // 그 턴의 모든 요청이 낸 출력 토큰(생각과 도구 호출 포함)
     const isDone = (turn: Turn) => turn.answer !== undefined && !e.props.isSummary
     const ended =
-      turns.find(one => isDone(one) && one.lastReplyId === e.requestId) ??
+      turns.find(one => isDone(one) && isReply(one.lastReplyId, one.lastReplyText)) ??
       turns.find(
         one => isDone(one) && one.lastReplyId === undefined && one.answer?.trim().endsWith(text)
       )

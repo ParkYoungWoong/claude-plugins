@@ -1,6 +1,6 @@
 {
   "name": "prompt-translator",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Translates the prompts you type into the language you choose and shows the translation right under each prompt",
   "author": {
     "name": "ParkYoungWoong",

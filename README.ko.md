@@ -34,7 +34,8 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 
 입력한 프롬프트를 고른 언어로 번역해 프롬프트 바로 밑에 보여 줍니다.  
 언어는 설치할 때 English (US), English (UK), 한글, 日本語, 中文 (简体), Español 중에서 고르고, 기본값은 English (US)입니다.  
-번역은 보기 전용이고, Claude는 입력한 원문을 그대로 처리합니다.
+번역은 보기 전용이고, Claude는 입력한 원문을 그대로 처리합니다.  
+데스크톱 앱에서는 번역이 입력 말풍선 밑의 말풍선으로 보입니다.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
@@ -43,7 +44,8 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 
 ### [token-meter](./plugins/token-meter/README.ko.md)
 
-각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 보여 줍니다.
+각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 보여 줍니다.  
+데스크톱 앱에서는 두 줄 모두 입력 말풍선처럼 오른쪽 끝에 붙습니다.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
@@ -56,7 +58,7 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 ## 요구 사항
 
 두 플러그인 모두 훅 모듈로 동작하는 Mod라서, Mod를 지원하는 Claude Code가 필요합니다.  
-Claude Code 2.1.311의 터미널 전체 화면(fullscreen) 모드에서 확인했습니다.
+Claude Code 2.1.312의 터미널(기본 화면과 전체 화면 모드)과 클로드 데스크톱 앱 4.29의 Claude Code에서 확인했습니다.
 
 ## 라이선스
 

@@ -34,7 +34,8 @@ See the [prompt-translator README](./plugins/prompt-translator/README.md#claude-
 
 Translates the prompts you type into the language you choose and shows the translation right under each prompt.  
 You pick the language when you install it: English (US), English (UK), 한글, 日本語, 中文 (简体) or Español, with English (US) as the default.  
-The translation is only for reading, and Claude still works from your original prompt.
+The translation is only for reading, and Claude still works from your original prompt.  
+In the desktop app, the translation shows as a bubble under your prompt.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
@@ -43,7 +44,8 @@ The translation is only for reading, and Claude still works from your original p
 
 ### [token-meter](./plugins/token-meter)
 
-Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply.
+Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply.  
+In the desktop app, both lines sit at the right edge, like your prompts.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
@@ -56,7 +58,7 @@ Shows the input tokens of each turn under its prompt, and the output tokens unde
 ## Requirements
 
 Both plugins are mods, plugins that run as a hooks module, so they need a version of Claude Code that supports mods.  
-They were tested on Claude Code 2.1.311 in the terminal's fullscreen mode.
+They were tested on Claude Code 2.1.312 in the terminal (both the default and the fullscreen mode) and in Claude Code in the Claude desktop app 4.29.
 
 ## License
 
