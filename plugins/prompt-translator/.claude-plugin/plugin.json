@@ -1,6 +1,6 @@
 {
   "name": "prompt-translator",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Translates the prompts you type into the language you choose and shows the translation right under each prompt",
   "author": {
     "name": "ParkYoungWoong",
@@ -18,6 +18,13 @@
       "description": "The language your prompts are translated into. Prompts already written in it are not translated.",
       "default": "English (US)",
       "options": ["English (US)", "English (UK)", "한글", "日本語", "中文 (简体)", "Español"]
+    },
+    "maxChars": {
+      "type": "number",
+      "title": "Auto-translate limit",
+      "description": "Prompts longer than this many characters (spaces included) are translated only when they contain ultratranslate. Left empty, it is 300. 0 translates only prompts with the keyword.",
+      "default": 300,
+      "min": 0
     }
   }
 }

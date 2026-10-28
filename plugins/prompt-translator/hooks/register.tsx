@@ -5,6 +5,7 @@ import type {
   ModelCompleteResult,
   Register,
   RenderElement,
+  RenderInput,
   RenderNode,
   StateDollar
 } from 'claude-code'
@@ -12,8 +13,8 @@ import type {
 import type { Entry } from '../types'
 
 const MODEL = 'claude-sonnet-5-5'
-// 공백 포함 이 글자 수를 넘는 프롬프트는 키워드가 있을 때만 번역한다
-const MAX_CHARS = 300
+// 공백 포함 이 글자 수를 넘는 프롬프트는 키워드가 있을 때만 번역한다(userConfig.maxChars 의 기본값)
+const DEFAULT_MAX_CHARS = 300
 const KEYWORD = /[ \t]*\bultratranslate\b/gi
 const KEEP = 100
 const HANGUL = /[ㄱ-ㆎ가-힣]/
@@ -76,7 +77,7 @@ const systemOf = (language: Language) =>
     language.style,
     'Keep code, file paths, commands, identifiers, URLs, @mentions and anything inside backticks exactly as written.',
     'Keep quoted text that is meant to be used verbatim (an exact reply, a UI label, a commit message) in its original language.',
-    'Keep the original line breaks and list structure.',
+    'Keep the original line breaks and list structure exactly: one line break stays one line break, and add no blank lines the original does not have.',
     `Output only the ${language.name} translation, with no notes, quotes or preamble.`
   ]
     .filter(Boolean)
@@ -84,7 +85,15 @@ const systemOf = (language: Language) =>
 
 // register 가 받은 설정으로 바뀐다
 let target = AMERICAN
+let targetLabel = 'English (US)'
 let system = systemOf(target)
+let maxChars = DEFAULT_MAX_CHARS
+
+// 0 이면 키워드가 있을 때만 번역하고, 숫자가 아니거나 음수면 기본값을 쓴다
+const maxCharsOf = (value: unknown) => {
+  const limit = Number(value)
+  return Number.isFinite(limit) && limit >= 0 ? Math.floor(limit) : DEFAULT_MAX_CHARS
+}
 
 // 저장 형태가 바뀌면 태그를 올려 이전 버전이 남긴 값을 버린다
 const entries = atom({ plugin: 'prompt-translator', key: 'entries' } as const, [], {
@@ -131,7 +140,7 @@ const isForeign = (text: string) => {
 }
 
 const isWorth = (source: string, isForced: boolean) =>
-  isForeign(source) && (isForced || [...bodyOf(source)].length <= MAX_CHARS)
+  isForeign(source) && (isForced || [...bodyOf(source)].length <= maxChars)
 
 const textOf = (content: readonly { type: string; text?: unknown }[]) =>
   content
@@ -149,12 +158,22 @@ const commandNameOf = (rows: Input[], text: string) => {
   return echo?.text.match(COMMAND_NAME)?.[1]
 }
 
+const BLANK_LINE = /\n[ \t]*\n/
+
 // 모델이 감싸는 태그를 따라 쓰거나 빈 줄을 늘어놓는 경우를 정리한다
-const tidy = (text: string) =>
-  text
+// 원문에 빈 줄이 없으면 번역에도 두지 않고, 있으면 한 줄까지만 둔다
+const tidy = (text: string, source: string) => {
+  const lines = text
     .replace(/<\/?message>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
     .trim()
+    .split('\n')
+    .map(line => line.trimEnd())
+  const keepsBlank = BLANK_LINE.test(source)
+
+  return lines
+    .filter((line, index) => line !== '' || (keepsBlank && lines[index - 1] !== ''))
+    .join('\n')
+}
 
 // 엔진이 그린 프롬프트 줄(engine 노드)을 프롬프트 줄 + 번역으로 바꿔, 다른 Mod 가 덧붙인 줄
 // (token-meter 의 토큰 수 등)은 플러그인 순서와 상관없이 번역 아래로 간다
@@ -175,7 +194,72 @@ const underPrompt = (tree: RenderElement, stack: (row: RenderElement) => RenderE
   return isPlaced ? placed : stack(tree)
 }
 
-// 번역 한 줄: [- 원문(번역)] 를 누르면 숨기고, [+ ...] 를 누르면 다시 보인다
+// 데스크톱 앱 머리줄의 번역 아이콘(Material Icons 의 translate, Apache 2.0): 어두운 테마와 밝은 테마 모두에서 보이는 회색
+const TRANSLATE_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#8E8E93"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>'
+
+// 데스크톱 앱의 번역: 입력 말풍선 바로 밑에 같은 배경색의 말풍선으로 붙여 Claude 의 답변과 구분하고,
+// 머리줄 왼쪽에 아이콘과 언어, 오른쪽 끝에 숨기기 단추를 둔다(카드가 오른쪽에 붙어 있어 숨겨도 단추 자리가 그대로다)
+// 숨기면 머리줄만 남고, 번역 중이거나 실패하면 머리줄에 그 상태를 쓴다
+// 카드 폭에는 최대값을 줄 수 없어서, 왼쪽에 줄지 않는 빈 칸을 두어 긴 번역도 말풍선처럼 오른쪽 80% 안에서 접히게 한다
+// 입력 말풍선은 글자색을 옅게 깐 배경이라 테마 키로는 같은 색을 낼 수 없어, 어두운 테마와 밝은 테마 모두에서
+// 말풍선과 비슷해지는 반투명 회색을 쓴다. 모서리는 테두리가 있을 때만 둥글게 그려져서 투명한 테두리를 둔다
+// 입력 말풍선 바로 밑에는 말풍선의 제어 아이콘(복사 등)이 놓이므로 위쪽 여백을 따로 주지 않고 그 밑에 붙인다
+const desktopLineOf = (
+  { Box, Button, Svg, Text }: ElementTable<'desktop'>,
+  entry: Entry,
+  onToggle: () => unknown
+) => {
+  const isDone = entry.status === 'done'
+  const status =
+    entry.status === 'failed'
+      ? `Could not translate (${entry.reason})`
+      : isDone
+        ? targetLabel
+        : 'Translating...'
+
+  return (
+    <Box flexDirection="row" justifyContent="flex-end">
+      <Box width="20%" flexShrink={0} />
+      <Box
+        flexDirection="column"
+        flexShrink={1}
+        gap="xs"
+        paddingX="sm"
+        paddingY="xs"
+        borderStyle="round"
+        borderColor="rgba(128, 128, 128, 0)"
+        backgroundColor="rgba(128, 128, 128, 0.1)"
+      >
+        <Box flexDirection="row" alignItems="center" justifyContent="space-between" gap="sm">
+          <Box flexDirection="row" alignItems="center" gap="xs">
+            <Svg source={TRANSLATE_ICON} alt="Translation" width={14} height={14} />
+            <Text size="caption" dimColor>
+              {status}
+            </Text>
+          </Box>
+          {isDone && (
+            <Button
+              key="toggle"
+              plain
+              dimColor
+              label={entry.isHidden ? 'Show' : 'Hide'}
+              onPress={onToggle}
+            />
+          )}
+        </Box>
+        {isDone && !entry.isHidden && <Text color="suggestion">{entry.translation}</Text>}
+      </Box>
+    </Box>
+  )
+}
+
+// 흐르며 줄바꿈되는 단위: 한자와 가나는 한 글자(뒤 문장 부호 포함), 그 밖은 낱말과 뒤 공백
+const WORD =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー][、。，．！？」』）]*|[^\s\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]+[ \t]*|[ \t]+/gu
+
+// 번역 한 줄: 첫 글자 앞의 [Hide] 를 누르면 숨기고 [Show] 를 누르면 다시 보인다
+// 단추는 글 안에 넣을 수 없어서 낱말마다 감싸 흐르게 해, 길게 접혀도 다음 줄이 단추 밑에서 시작한다
 const lineOf = ({ Box, Button, Text }: ElementTable, entry: Entry, onToggle: () => unknown) => {
   if (entry.status !== 'done') {
     return (
@@ -187,22 +271,44 @@ const lineOf = ({ Box, Button, Text }: ElementTable, entry: Entry, onToggle: () 
     )
   }
 
-  const sourceCount = [...bodyOf(entry.source)].length
-  const translationCount = [...(entry.translation ?? '')].length
-  const mark = entry.isHidden ? '+' : '-'
+  const toggle = (
+    <Button
+      key="toggle"
+      plain
+      dimColor
+      label={entry.isHidden ? '[Show]' : '[Hide]'}
+      onPress={onToggle}
+    />
+  )
+  if (entry.isHidden) return <Box paddingLeft={2}>{toggle}</Box>
+
+  const rows = (entry.translation ?? '').split('\n').map((line, index) => (
+    <Box flexDirection="row" flexWrap="wrap">
+      {index === 0 && toggle}
+      {index === 0 && <Text> </Text>}
+      {(line.match(WORD) ?? [' ']).map(word => (
+        <Text color="suggestion">{word}</Text>
+      ))}
+    </Box>
+  ))
 
   return (
-    <Box paddingLeft={2} gap={1}>
-      <Button
-        key="toggle"
-        plain
-        dimColor
-        label={`[${mark} ${sourceCount}(${translationCount})]`}
-        onPress={onToggle}
-      />
-      {!entry.isHidden && <Text color="suggestion">{entry.translation}</Text>}
+    <Box paddingLeft={2} flexDirection="column">
+      {rows}
     </Box>
   )
+}
+
+// 화면마다 번역 줄을 그린다: 데스크톱 앱은 카드, 그 밖(터미널 등)은 인라인 한 줄
+const lineFor = (
+  $: EngineInterface,
+  e: RenderInput<'UserMessage' | 'AssistantMessage'>,
+  entry: Entry
+) => {
+  const onToggle = () => patchEntry($, entry.id, one => ({ isHidden: !one.isHidden }))
+  if (e.surface === 'desktop') return desktopLineOf($.ui.resolve(e), entry, onToggle)
+
+  return lineOf($.ui.resolve(e), entry, onToggle)
 }
 
 const failReason = (result: ModelCompleteResult) => {
@@ -225,7 +331,7 @@ const translate = async ($: EngineInterface, id: string, body: string, isForced:
     })
     await patchEntry($, id, () =>
       result.isAnswered
-        ? { status: 'done', translation: tidy(result.text) }
+        ? { status: 'done', translation: tidy(result.text, body) }
         : { status: 'failed', reason: failReason(result) }
     )
   } catch {
@@ -240,9 +346,49 @@ const start = async ($: EngineInterface, entry: Omit<Entry, 'status'>) => {
   if (isShown) void translate($, entry.id, bodyOf(entry.source), entry.isForced ?? false)
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// 설정 화면의 숫자 칸은 저장된 값만 보여 주고 기본값은 채우지 않아서, 비어 있으면 기본값을 저장해 둔다
+// (설치 플러그인은 prompt-translator@<마켓플레이스>, --plugin-dir 은 prompt-translator@inline 으로 저장된다)
+const storeDefaultLimit = async ($: EngineInterface) => {
+  const configs = await $.settings.read({ key: 'pluginConfigs' })
+  const isStored = Object.entries(isRecord(configs) ? configs : {}).some(
+    ([name, config]) =>
+      name.split('@')[0] === 'prompt-translator' &&
+      isRecord(config) &&
+      isRecord(config.options) &&
+      config.options.maxChars !== undefined
+  )
+  if (isStored) return
+
+  // 플러그인의 설정 줄은 세션이 시작되고 조금 뒤에야 목록에 오른다
+  for (let tries = 0; tries < 20; tries += 1) {
+    const row = (await $.config.list()).find(
+      one =>
+        one.provider.plugin.split('@')[0] === 'prompt-translator' && one.key.endsWith('.maxChars')
+    )
+    if (row) {
+      await $.config.set({ key: row.key, value: DEFAULT_MAX_CHARS })
+      return
+    }
+    await $.clock.sleep(500)
+  }
+}
+
 export const register: Register = (on, options) => {
   target = LANGUAGES[String(options.language)] ?? AMERICAN
+  targetLabel = String(options.language) in LANGUAGES ? String(options.language) : 'English (US)'
   system = systemOf(target)
+  maxChars = maxCharsOf(options.maxChars)
+
+  // 세션 시작을 막지 않도록 기다리지 않는다
+  on('session.start', async ($, e, next) => {
+    const result = await next(e)
+    void storeDefaultLimit($).catch(() => {})
+
+    return result
+  })
 
   // 명령 인자의 키워드는 명령이 실행되기 전에 뺀다(/goal 의 조건이나 스킬 인자에 남지 않게)
   on('command.run', ($, e, next) => {
@@ -350,11 +496,8 @@ export const register: Register = (on, options) => {
       list.find(one => !one.isCommand && one.source === e.props.text)
     if (!entry || entry.isCommand) return next(e)
 
-    const ui = $.ui.resolve(e)
-    const { Box } = ui
-    const line = lineOf(ui, entry, () =>
-      patchEntry($, entry.id, one => ({ isHidden: !one.isHidden }))
-    )
+    const { Box } = $.ui.resolve(e)
+    const line = lineFor($, e, entry)
 
     return underPrompt(await next(e), row => (
       <Box flexDirection="column">
@@ -369,11 +512,8 @@ export const register: Register = (on, options) => {
     const entry = (await read($, entries)).find(one => one.replyId === e.requestId)
     if (!entry) return next(e)
 
-    const ui = $.ui.resolve(e)
-    const { Box } = ui
-    const line = lineOf(ui, entry, () =>
-      patchEntry($, entry.id, one => ({ isHidden: !one.isHidden }))
-    )
+    const { Box } = $.ui.resolve(e)
+    const line = lineFor($, e, entry)
 
     // 다른 Mod 가 답변 위에 끼운 줄(token-meter 의 토큰 수)보다 위에 오도록 맨 앞에 둔다
     return (

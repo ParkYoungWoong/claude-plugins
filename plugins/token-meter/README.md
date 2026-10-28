@@ -50,7 +50,7 @@ Subagent requests are not counted, and notification rows are left alone.
 - Commands that don't start a turn, such as `/rename`, show nothing.
 - A prompt you send while Claude is working joins the running turn, so it shows only `prompt ~N tokens`.  
   Its tokens are counted in the numbers of the turn that was running.
-- It shows in the same places in Claude Code in the Claude desktop app.
+- It shows in the same places in Claude Code in the Claude desktop app, aligned to the right like your prompts.
 
 ## Turning it off
 

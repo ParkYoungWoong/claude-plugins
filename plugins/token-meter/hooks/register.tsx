@@ -1,5 +1,13 @@
 import { atom, read, update } from 'claude-code'
-import type { ModelUsage, Register, RenderElement, RenderNode, StateDollar } from 'claude-code'
+import type {
+  ElementTable,
+  ModelUsage,
+  Register,
+  RenderElement,
+  RenderNode,
+  RenderSurface,
+  StateDollar
+} from 'claude-code'
 
 import type { Meter, Turn } from '../types'
 
@@ -89,6 +97,18 @@ const promptLabel = (text: string, turn: Turn | undefined) => {
 }
 
 // 엔진이 그린 답변(engine 노드) 바로 위에 줄을 끼워, 다른 Mod 가 맨 위에 붙인 줄(번역)보다 아래에 온다
+// 토큰 수 한 줄: 데스크톱 앱은 입력 말풍선처럼 오른쪽 끝에 붙이고, 그 밖(터미널 등)은 두 칸 들여 쓴다
+const lineOf = ({ Box, Text }: ElementTable, surface: RenderSurface, text: string) =>
+  surface === 'desktop' ? (
+    <Box flexDirection="row" justifyContent="flex-end">
+      <Text dimColor>{text}</Text>
+    </Box>
+  ) : (
+    <Box paddingLeft={2}>
+      <Text dimColor>{text}</Text>
+    </Box>
+  )
+
 const aboveEngine = (tree: RenderElement, stack: (row: RenderElement) => RenderElement) => {
   let isPlaced = false
   const visit = (node: RenderNode): RenderNode => {
@@ -213,15 +233,14 @@ export const register: Register = on => {
       turns.find(one => one.rowId === undefined && one.prompt === text)
     if (turn?.isCommand) return next(e)
 
-    const { Box, Text } = $.ui.resolve(e)
+    const ui = $.ui.resolve(e)
+    const { Box } = ui
     const row = await next(e)
 
     return (
       <Box flexDirection="column">
         {row}
-        <Box paddingLeft={2}>
-          <Text dimColor>{promptLabel(text, turn)}</Text>
-        </Box>
+        {lineOf(ui, e.surface, promptLabel(text, turn))}
       </Box>
     )
   })
@@ -243,14 +262,13 @@ export const register: Register = on => {
       )
     if (!asked && !ended) return next(e)
 
-    const { Box, Text } = $.ui.resolve(e)
+    const ui = $.ui.resolve(e)
+    const { Box } = ui
     const row = await next(e)
     const tree = asked
       ? aboveEngine(row, reply => (
           <Box flexDirection="column">
-            <Box paddingLeft={2}>
-              <Text dimColor>{promptLabel(asked.prompt, asked)}</Text>
-            </Box>
+            {lineOf(ui, e.surface, promptLabel(asked.prompt, asked))}
             {reply}
           </Box>
         ))
@@ -260,9 +278,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {tree}
-        <Box paddingLeft={2}>
-          <Text dimColor>output {comma(ended.output)} tokens</Text>
-        </Box>
+        {lineOf(ui, e.surface, `output ${comma(ended.output)} tokens`)}
       </Box>
     )
   })

@@ -38,7 +38,7 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
-  [- 19(44)] Can you add error handling to this function?
+  [Hide] Can you add error handling to this function?
 ```
 
 ### [token-meter](./plugins/token-meter/README.ko.md)

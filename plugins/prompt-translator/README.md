@@ -8,7 +8,7 @@ Read this in [한글](./README.ko.md).
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
-  [- 19(44)] Can you add error handling to this function?
+  [Hide] Can you add error handling to this function?
 ```
 
 ## Install
@@ -31,9 +31,11 @@ Run this from the prompt of a Claude Code terminal session.
 
    <img src="./images/cli-install-2-scope.png" alt="Plugin Details with the install scopes" width="883">
 
-3. Pick the translation language with ←/→ and press Enter, then press Enter again on `Save configuration`.
+3. Pick the translation language with ←/→ and press Enter.  
+   Type a number for `Auto-translate limit` and press Enter, or just press Enter to keep the default of 300.  
+   Then press Enter on `Save configuration`.
 
-   <img src="./images/cli-install-3-language.png" alt="Configure prompt-translator with Translation language set to English (US)" width="883">
+   <img src="./images/cli-install-3-language.png" alt="Configure prompt-translator with Translation language and Auto-translate limit" width="883">
 
 4. When you see `Installed and configured prompt-translator. Plugin is now active.`, it already works in the current session.  
    Type a prompt, and the translation shows right under it.
@@ -63,15 +65,17 @@ The desktop app doesn't run `/plugin`, so install it from the plugin settings.
 
    <img src="./images/desktop-en-2-plugin.png" alt="Prompt translator with the Add to this computer button" width="1022">
 
-4. The desktop app doesn't ask for the language while installing, so it starts with English (US).  
-   To change it, open Prompt translator in the Yours tab, pick the Translation language in its Settings tab, and click Save.  
-   The new language applies to sessions you start after that.
+4. The desktop app doesn't ask for the options while installing, so it starts with English (US) and a 300-character limit.  
+   The limit is saved as 300 the first time a session starts, so the field shows it from then on.  
+   To change them, open Prompt translator in the Yours tab, set Translation language and Auto-translate limit in its Settings tab, and click Save.  
+   The new values apply to sessions you start after that.
 
-   <img src="./images/desktop-en-3-language.png" alt="The Settings tab of Prompt translator with the Translation language list open" width="1022">
+   <img src="./images/desktop-en-3-language.png" alt="The Settings tab of Prompt translator with Translation language and Auto-translate limit" width="1022">
 
-5. In a new session, the translation shows right under the prompt, just like in the terminal.
+5. In a new session, the translation shows in a bubble right under your prompt, aligned to the right like the prompt itself.  
+   The language is at the top, and `Hide` at the top right folds the bubble down to that line.
 
-   <img src="./images/desktop-en-4-translation.png" alt="A Korean prompt with its English translation in the desktop app" width="646">
+   <img src="./images/desktop-en-4-translation.png" alt="A Korean prompt with its English translation in a bubble under it in the desktop app" width="635">
 
 ## Translation languages
 
@@ -103,16 +107,17 @@ After switching to `日本語`, the same kind of prompt is translated into Japan
 - Translation and Claude's work start at the same time.  
   `Translating...` shows under the prompt until the translation is ready, and then the same spot turns into the translation.
 - The translation is attached to the prompt row, so it scrolls along with the transcript.
-- `[- 19(44)]` in front is the character count of your prompt (spaces included), followed by the translation's count in parentheses.  
-  Click it to hide that translation alone, and it turns into `[+ 19(44)]`.  
-  Click it again to show the translation.
+- Click `[Hide]` in front of a translation to hide that translation alone, and it turns into `[Show]`.  
+  Click `[Show]` to bring the translation back.
+- The translation starts right after the button, and a long one wraps under the button instead of leaving an empty column beside it.  
+  Line breaks follow your prompt: a blank line shows up only where your prompt has one.
 - Code, file paths, commands, identifiers, URLs, @mentions, and anything inside backticks stay as written.  
   Quoted text meant to be used verbatim (an exact reply, a UI label, a commit message) also stays in its original language.
 - When a translation fails, only `Could not translate (reason)` is shown.  
   Claude's work goes on as usual.
 - For a slash command that puts Claude to work, such as `/goal` or a skill, the text after the command (its arguments) is translated.  
   A command row has no spot a mod can draw under, so the translation shows right above Claude's first reply to that command.
-- It also works in Claude Code in the Claude desktop app.  
+- It also works in Claude Code in the Claude desktop app, where the translation is drawn as a bubble under the prompt with `Hide`/`Show` at its top right.  
   A first prompt sent before the app attaches its view to the session is translated as soon as the view attaches.
 
 ## When it doesn't translate
@@ -123,14 +128,22 @@ After switching to `日本語`, the same kind of prompt is translated into Japan
 - Slash commands that finish without any work from Claude, such as `/rename`
 - Messages you didn't type yourself, such as task notifications
 - Runs without a screen (`claude -p`)
-- Prompts longer than 300 characters, spaces and pasted text included.  
+- Prompts longer than the auto-translate limit (300 characters by default), spaces and pasted text included.  
   Nothing is shown for these.
 
 ## Translating long prompts: `ultratranslate`
 
-Put `ultratranslate` anywhere in a prompt (case-insensitive) to translate it even when it runs past 300 characters.  
+Put `ultratranslate` anywhere in a prompt (case-insensitive) to translate it even when it runs past the auto-translate limit.  
 The keyword is removed before the prompt reaches Claude, so it doesn't change the work.  
 It works in a slash command's arguments too (`/goal ... ultratranslate`).
+
+The limit is 300 characters by default.  
+Change `Auto-translate limit` in `/config` (or in the plugin's Settings tab in the desktop app), or pass it when installing from a shell.  
+Set it to `0` to translate only the prompts that contain `ultratranslate`.
+
+```bash
+claude plugin install prompt-translator --marketplace ParkYoungWoong/claude-plugins --config maxChars=500
+```
 
 ## Cost
 

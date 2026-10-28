@@ -1,6 +1,6 @@
 {
   "name": "token-meter",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Shows the tokens each turn used right under its prompt and its last reply",
   "author": {
     "name": "ParkYoungWoong",
