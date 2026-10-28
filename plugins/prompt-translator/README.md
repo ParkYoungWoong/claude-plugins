@@ -33,11 +33,15 @@ For other ways to install, see the [repository README](../../README.md#install).
   Quoted text meant to be used verbatim (an exact reply, a UI label, a commit message) also stays in its original language.
 - When a translation fails, only `번역하지 못했습니다 (reason)` (could not translate) is shown.  
   Claude's work goes on as usual.
+- For a slash command that puts Claude to work, such as `/goal` or a skill, the text after the command (its arguments) is translated.  
+  A command row has no spot a mod can draw under, so the translation shows right above Claude's first reply to that command.
+- It also works in Claude Code in the Claude desktop app.  
+  A first prompt sent before the app attaches its view to the session is translated as soon as the view attaches.
 
 ## When it doesn't translate
 
 - Prompts without any Hangul
-- Slash commands
+- Slash commands that finish without any work from Claude, such as `/rename`
 - Messages you didn't type yourself, such as task notifications
 - Runs without a screen (`claude -p`)
 - Prompts longer than 300 characters, spaces and pasted text included.  
@@ -46,7 +50,8 @@ For other ways to install, see the [repository README](../../README.md#install).
 ## Translating long prompts: `ultratranslate`
 
 Put `ultratranslate` anywhere in a prompt (case-insensitive) to translate it even when it runs past 300 characters.  
-The keyword is removed before the prompt reaches Claude, so it doesn't change the work.
+The keyword is removed before the prompt reaches Claude, so it doesn't change the work.  
+It works in a slash command's arguments too (`/goal ... ultratranslate`).
 
 ## Cost
 

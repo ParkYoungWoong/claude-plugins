@@ -189,3 +189,147 @@ test('알림 줄과 슬래시 명령 줄은 그대로 둔다', async ($, on) => 
     expect((await lineUnder($, { ...prompt('/context'), surface })).line).toBeUndefined()
   }
 })
+
+const input = ($: Engine, door: 'prompt' | 'command', uuid: string, text: string) =>
+  $.session.append({
+    door,
+    uuid,
+    origin: { kind: 'composer' },
+    message: { type: 'user', role: 'user', content: [{ type: 'text', text }] }
+  })
+
+// 엔진처럼 입력 줄을 쌓고 턴을 시작한다. 명령은 명령 줄과 출력 줄을 쌓고 /goal 만 턴을 시작하며,
+// 2.1.312 의 /goal 처럼 턴의 글은 출력 줄이다. prompt.submit 은 턴이 시작되기 전에 끝날 수 있다
+const prompts = (on: On, $: Engine) => {
+  let count = 0
+  const started: Promise<unknown>[] = []
+  on('prompt.submit', async (_, e) => {
+    count += 1
+    const id = `row-${count}`
+    if (!e.command) {
+      await input($, 'prompt', id, e.text)
+      started.push($.turn.start({ turnId: `turn-${count}`, text: e.text }))
+
+      return { text: e.text }
+    }
+
+    const { name, args } = e.command
+    await input(
+      $,
+      'command',
+      id,
+      `<command-name>/${name}</command-name>\n<command-args>${args}</command-args>`
+    )
+    const output = `<local-command-stdout>Done: ${args}</local-command-stdout>`
+    await input($, 'command', `${id}-output`, output)
+    if (name === 'goal') started.push($.turn.start({ turnId: `turn-${count}`, text: output }))
+
+    return { text: e.text }
+  })
+
+  return () => Promise.all(started)
+}
+
+const command = ($: Engine, name: string, args: string) =>
+  $.prompt.submit({
+    text: `/${name} ${args}`,
+    command: { name, args },
+    wait: false,
+    origin: { kind: 'composer' }
+  })
+
+const respond = ($: Engine, uuid: string, text: string) =>
+  $.session.append({
+    door: 'response',
+    uuid,
+    origin: { kind: 'model', model: 'claude-opus-5-5' },
+    message: { type: 'assistant', role: 'assistant', content: [{ type: 'text', text }] }
+  })
+
+const complete = ($: Engine, turnId: string, answer: string) =>
+  $.turn.complete({ turnId, answer, durationMs: 1000, isAborted: false, reason: 'answer' })
+
+const textsOf = async ($: Engine, mount: Parameters<Engine['ui']['mount']>[0]) => {
+  const ui = await $.ui.mount(mount)
+  const texts = (await ui.findAll({ type: 'Text' })).map(one => one.text)
+  await ui.unmount()
+
+  return texts
+}
+
+test('명령이 시작한 턴은 첫 답변 위에 입력 토큰을, 마지막 답변 밑에 출력 합계를 보인다', async ($, on) => {
+  const server = engine(on, [usage(5, 20000, 300), usage(10, 20400, 120)])
+  const settle = prompts(on, $)
+
+  // 턴을 시작하지 않는 명령의 줄은 다음 턴에 섞이지 않는다
+  await command($, 'rename', '새 이름')
+  await command($, 'goal', '테스트 통과')
+  await settle()
+  await step($, server, 'turn-2', 0)
+  await respond($, 'reply-1', '목표를 확인했습니다.')
+  await step($, server, 'turn-2', 1)
+  await respond($, 'reply-2', '모두 통과했습니다.')
+  await complete($, 'turn-2', '모두 통과했습니다.')
+
+  for (const surface of SURFACES) {
+    // 한글 5자 x 1.35 + 나머지 7자 / 3.2 = 8.9
+    const first = { ...reply('목표를 확인했습니다.'), requestId: 'reply-1', surface }
+    expect(await textsOf($, first)).toEqual([
+      'prompt ~9 / total input 40,415 tokens (2 requests, cached 13:55:02)',
+      'engine'
+    ])
+    const last = { ...reply('모두 통과했습니다.'), requestId: 'reply-2', surface }
+    expect(await textsOf($, last)).toEqual(['engine', 'output 420 tokens'])
+
+    // 명령 줄에는 아무것도 붙이지 않는다
+    const row = { ...prompt('<command-name>/goal</command-name>'), requestId: 'row-2', surface }
+    expect(await textsOf($, row)).toEqual(['engine'])
+  }
+})
+
+test('같은 글을 두 번 보내도 줄 id 로 각자의 숫자를 보이고, 앞에 붙은 안내 블록은 뺀다', async ($, on) => {
+  const server = engine(on, [usage(5, 20000, 300), usage(4, 20400, 50)])
+  const settle = prompts(on, $)
+  const typed = '다시 해 줘'
+
+  // 데스크톱 앱이 폴더 없이 시작한 세션의 첫 메시지는 앞에 안내 블록이 붙어 온다
+  await $.prompt.submit({
+    text: `<system-reminder>\nNo folder.\n</system-reminder>\n${typed}`,
+    wait: false,
+    origin: { kind: 'sdk' }
+  })
+  await settle()
+  await step($, server, 'turn-1', 0)
+  await respond($, 'reply-1', '했습니다.')
+  await complete($, 'turn-1', '했습니다.')
+  await $.prompt.submit({ text: typed, wait: false, origin: { kind: 'sdk' } })
+  await settle()
+  await step($, server, 'turn-2', 0)
+  await respond($, 'reply-2', '했습니다.')
+  await complete($, 'turn-2', '했습니다.')
+
+  for (const surface of SURFACES) {
+    const first = { ...prompt(typed), requestId: 'row-1', surface }
+    expect(await textsOf($, first)).toEqual([
+      'engine',
+      'prompt ~6 / total input 20,005 tokens (1 request, cached 13:55:02)'
+    ])
+    // 늘린 양은 20404 - (20005 + 300) = 99
+    const second = { ...prompt(typed), requestId: 'row-2', surface }
+    expect(await textsOf($, second)).toEqual([
+      'engine',
+      'prompt ~6 / context 99 / total input 20,404 tokens (1 request, cached 13:55:02)'
+    ])
+
+    // 답변도 글이 같아 줄 id 로 가른다
+    const replies = await Promise.all(
+      ['reply-1', 'reply-2'].map(id =>
+        textsOf($, { ...reply('했습니다.'), requestId: id, surface })
+      )
+    )
+    expect(replies).toEqual([
+      ['engine', 'output 300 tokens'],
+      ['engine', 'output 50 tokens']
+    ])
+  }
+})

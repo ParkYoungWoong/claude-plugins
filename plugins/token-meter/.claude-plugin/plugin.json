@@ -1,6 +1,6 @@
 {
   "name": "token-meter",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "대화의 각 입력과 출력 바로 밑에 사용한 토큰 수를 보여 준다",
   "author": {
     "name": "ParkYoungWoong",

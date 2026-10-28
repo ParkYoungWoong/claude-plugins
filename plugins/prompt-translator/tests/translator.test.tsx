@@ -132,7 +132,7 @@ test('붙여넣은 글의 표식은 번역할 글과 글자 수에서 뺀다', a
   expect(seen.prompts).toEqual(['<message>\n첫 줄입니다.\n\n요약해 줘\n</message>'])
 })
 
-test('슬래시 명령, 영어, 작업 알림, 화면 없는 세션은 번역하지 않는다', async ($, on) => {
+test('턴을 시작하지 않는 슬래시 명령, 영어, 작업 알림, 화면 없는 세션은 번역하지 않는다', async ($, on) => {
   let surfaces: ('terminal' | 'desktop')[] = ['terminal']
   let calls = 0
   on('session.surfaces', () => ({ value: surfaces }))
@@ -235,4 +235,218 @@ test('번역을 기다리지 않고 원문을 바로 넘기고, 번역은 끝나
   expect(await ui.find({ type: 'Text', text: 'Build it.' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '번역 중...' })).toBeUndefined()
   await ui.unmount()
+})
+
+test('다른 Mod 가 프롬프트 줄 밑에 붙인 줄보다 번역이 먼저 온다', async ($, on) => {
+  on('session.surfaces', () => ({ value: ['terminal'] }))
+  on('model.complete', () => ({
+    value: { isAnswered: true, text: 'Run the tests.', usage: ZERO }
+  }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  // 엔진의 프롬프트 줄 밑에 token-meter 처럼 한 줄을 덧붙인 결과가 아래에서 올라온다
+  on('ui.render', ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+
+    return (
+      <Box flexDirection="column">
+        {{ type: 'engine', ref: 0 }}
+        <Text>prompt ~10 tokens</Text>
+      </Box>
+    )
+  })
+
+  await submit($, '테스트 돌려 줘')
+  await wait(50)
+
+  const ui = await $.ui.mount({ ...row('테스트 돌려 줘'), surface: 'terminal' })
+  const texts = (await ui.findAll({ type: 'Text' })).map(one => one.text)
+  expect(texts.indexOf('Run the tests.')).toBeGreaterThan(-1)
+  expect(texts.indexOf('Run the tests.')).toBeLessThan(texts.indexOf('prompt ~10 tokens'))
+  // 자리를 옮겨도 숨기기 단추는 그대로 동작한다
+  await ui.press({ key: 'toggle' })
+  expect((await ui.find({ key: 'toggle' }))?.text).toBe('[+ 8(14)]')
+  expect(await ui.find({ type: 'Text', text: 'Run the tests.' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'prompt ~10 tokens' })).toBeDefined()
+  await ui.unmount()
+})
+
+// 엔진처럼 프롬프트를 받으면 줄을 쌓고 턴을 시작한다: 명령이면 명령 줄을 쌓고 /goal 만 턴을 시작한다
+const session = (on: On, $: Engine, surfaces: ('terminal' | 'desktop')[] = ['terminal']) => {
+  const seen = {
+    prompts: [] as string[],
+    args: [] as string[],
+    started: [] as Promise<unknown>[],
+    surfaces
+  }
+  let count = 0
+  on('session.surfaces', () => ({ value: seen.surfaces }))
+  on('session.attach', (_, e) => ({ clientId: e.clientId }))
+  on('model.complete', (_, e) => {
+    seen.prompts.push(e.prompt)
+
+    return { value: { isAnswered: true, text: 'Translated.', usage: ZERO } }
+  })
+  on('command.run', (_, e) => {
+    seen.args.push(e.args)
+
+    return {}
+  })
+  // 엔진처럼 입력 줄을 쌓고 턴을 시작한다. 명령은 명령 줄과 출력 줄을 쌓고 /goal 만 턴을 시작하며
+  // (2.1.312 처럼 턴의 글은 출력 줄), prompt.submit 은 턴의 위쪽 훅이 끝나기 전에 끝난다
+  on('prompt.submit', async (_, e) => {
+    count += 1
+    const rows = e.command
+      ? [
+          `<command-name>/${e.command.name}</command-name>\n<command-args>${e.command.args}</command-args>`,
+          `<local-command-stdout>Done: ${e.command.args}</local-command-stdout>`
+        ]
+      : [e.text]
+    for (const [index, text] of rows.entries()) {
+      await $.session.append({
+        door: e.command ? 'command' : 'prompt',
+        uuid: index ? `row-${count}-${index}` : `row-${count}`,
+        origin: e.origin,
+        message: { type: 'user', role: 'user', content: [{ type: 'text', text }] }
+      })
+    }
+    if (!e.command || e.command.name === 'goal') {
+      seen.started.push($.turn.start({ turnId: `turn-${count}`, text: rows.at(-1) ?? '' }))
+    }
+
+    return { text: e.text }
+  })
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_, e) => ({ text: e.answer, usage: e.usage }))
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+
+    return <Text>engine</Text>
+  })
+
+  return seen
+}
+
+const respond = (
+  $: Engine,
+  uuid: string,
+  content: (
+    | { type: 'text'; text: string }
+    | { type: 'tool_use'; id: string; name: string; input: object }
+  )[]
+) =>
+  $.session.append({
+    door: 'response',
+    uuid,
+    origin: { kind: 'model', model: 'claude-opus-5-5' },
+    message: { type: 'assistant', role: 'assistant', content }
+  })
+
+const answer = (uuid: string, text: string) =>
+  ({
+    plugin: 'prompt-translator',
+    component: 'AssistantMessage',
+    requestId: uuid,
+    props: { text, isFirstOfReply: true }
+  }) as const
+
+// 엔진처럼 command.run 을 지난 인자로 명령을 제출한다
+const command = async ($: Engine, seen: { args: string[] }, name: string, typed: string) => {
+  await $.command.run({
+    command: name,
+    args: typed,
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: true, columns: 120 }
+  })
+  const args = seen.args.at(-1) ?? typed
+  await $.prompt.submit({
+    text: `/${name} ${args}`,
+    command: { name, args },
+    wait: false,
+    origin: { kind: 'composer' }
+  })
+}
+
+test('/goal 처럼 턴을 시작하는 명령은 인자를 번역해 그 턴의 첫 답변 위에 붙인다', async ($, on) => {
+  const seen = session(on, $)
+
+  await command($, seen, 'rename', '새 이름')
+  await command($, seen, 'goal', '테스트가 모두 통과하면 끝')
+  await Promise.all(seen.started)
+  // 도구만 부른 줄을 지나 처음 글을 쓴 답변 위에 붙는다
+  await respond($, 'reply-1', [{ type: 'tool_use', id: 't1', name: 'Bash', input: {} }])
+  await respond($, 'reply-2', [{ type: 'text', text: '목표를 확인했습니다.' }])
+  await respond($, 'reply-3', [{ type: 'text', text: '모두 통과했습니다.' }])
+  await $.turn.complete({
+    turnId: 'turn-2',
+    answer: '모두 통과했습니다.',
+    durationMs: 1000,
+    isAborted: false,
+    reason: 'answer'
+  })
+
+  // 턴을 시작하지 않는 명령(/rename)은 번역하지 않는다
+  expect(seen.prompts).toEqual(['<message>\n테스트가 모두 통과하면 끝\n</message>'])
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...answer('reply-2', '목표를 확인했습니다.'), surface })
+    const texts = (await ui.findAll({ type: 'Text' })).map(one => one.text)
+    expect(texts).toEqual(['Translated.', 'engine'])
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[- 14(11)]')
+    await ui.unmount()
+
+    const later = await $.ui.mount({ ...answer('reply-3', '모두 통과했습니다.'), surface })
+    expect(await later.find({ type: 'Text', text: 'Translated.' })).toBeUndefined()
+    await later.unmount()
+
+    // 같은 글을 일반 프롬프트 줄로 보내도 명령의 번역을 가져다 쓰지 않는다
+    const prompt = await $.ui.mount({ ...row('테스트가 모두 통과하면 끝'), surface })
+    expect(await prompt.find({ type: 'Text', text: 'Translated.' })).toBeUndefined()
+    await prompt.unmount()
+  }
+})
+
+test('명령 인자의 키워드는 명령이 실행되기 전에 빼고, 길어도 번역한다', async ($, on) => {
+  const seen = session(on, $)
+  const long = '가'.repeat(301)
+
+  await command($, seen, 'goal', `${long} ultratranslate`)
+  await command($, seen, 'goal', '나'.repeat(301))
+  await Promise.all(seen.started)
+
+  expect(seen.args).toEqual([long, '나'.repeat(301)])
+  expect(seen.prompts).toEqual([`<message>\n${long}\n</message>`])
+})
+
+test('화면이 붙기 전에 보낸 프롬프트는 화면이 붙을 때 번역하고, 앞에 붙은 안내 블록은 뺀다', async ($, on) => {
+  const seen = session(on, $, [])
+  const typed = '안녕, 좋은 아침이야!'
+
+  await submit(
+    $,
+    `<system-reminder>\nThe user started this session without a folder.\n</system-reminder>\n${typed}`,
+    'sdk'
+  )
+  expect(seen.prompts).toEqual([])
+
+  seen.surfaces.push('desktop')
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+  await wait(50)
+  expect(seen.prompts).toEqual([`<message>\n${typed}\n</message>`])
+
+  // 화면이 그리는 글이 달라도 줄 id 로 짝을 맞춘다
+  for (const text of [typed, `${typed}\n`]) {
+    const ui = await $.ui.mount({
+      plugin: 'prompt-translator',
+      component: 'UserMessage',
+      requestId: 'row-1',
+      surface: 'desktop',
+      props: { text, origin: { kind: 'sdk' }, isExpanded: false }
+    })
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[- 12(11)]')
+    await ui.unmount()
+  }
+
+  // 다시 붙어도 번역을 또 하지 않는다
+  await $.session.attach({ surface: 'desktop', clientId: 'second' })
+  await wait(50)
+  expect(seen.prompts).toHaveLength(1)
 })

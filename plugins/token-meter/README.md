@@ -40,7 +40,17 @@ For other ways to install, see the [repository README](../../README.md#install).
 
 Before the first response arrives, only `prompt ~N tokens` shows.  
 The rest fills in once the response comes in.  
-Subagent requests are not counted, and slash command and notification rows are left alone.
+Subagent requests are not counted, and notification rows are left alone.
+
+## Slash commands and prompts sent mid-turn
+
+- A command that starts a turn, such as `/goal` or a skill, has no row a mod can draw under.  
+  So its input tokens show right above the first reply of that turn.  
+  `prompt ~N` is estimated from the command line you typed, and `context N` includes the instructions the command adds.
+- Commands that don't start a turn, such as `/rename`, show nothing.
+- A prompt you send while Claude is working joins the running turn, so it shows only `prompt ~N tokens`.  
+  Its tokens are counted in the numbers of the turn that was running.
+- It shows in the same places in Claude Code in the Claude desktop app.
 
 ## Turning it off
 
