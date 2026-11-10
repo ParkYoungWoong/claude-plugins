@@ -15,6 +15,8 @@ export type Turn = {
   added?: number
   // 서버로 보낸 입력 토큰: 턴 안의 요청마다 보낸 전체 입력(캐시 포함)의 합
   sent?: number
+  // sent 가운데 프롬프트 캐시에서 읽은 토큰(요청별 cache_read_input_tokens 의 합)
+  cacheRead?: number
   requests?: number
   // 이 입력을 실은 첫 요청에 서버가 응답을 시작한 시각(ms), 그때 프롬프트 캐시에 쓰여 있다
   cachedAt?: number

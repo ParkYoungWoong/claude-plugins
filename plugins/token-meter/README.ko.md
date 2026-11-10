@@ -7,7 +7,7 @@
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (2 requests, cached 13:56:08)
+  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, 2 requests, cached 13:56:08)
 
   고쳤습니다.
   output 2,400 tokens
@@ -32,6 +32,9 @@
 - `total input N`: 이 턴에 서버로 보낸 입력 토큰의 합입니다.  
   요청마다 시스템 프롬프트와 지난 대화 전체를 다시 보냅니다.  
   그래서 요청별 전체 입력(input + cache read + cache write)을 더합니다.
+- `cache read N / P%`: `total input` 가운데 프롬프트 캐시에서 읽은 토큰과 그 비율입니다.  
+  요청별 cache read 를 더한 값이고, 캐시에 새로 쓴 양(cache write)은 넣지 않습니다.  
+  비율은 소수 첫째 자리에서 버려서, 캐시를 다 읽지 않았는데 100.0%로 보이는 일이 없습니다.
 - `n requests`: 이 턴의 요청 횟수입니다.  
   도구를 쓸 때마다 늘어납니다.
 - `cached HH:MM:SS`: 이 입력을 실은 첫 요청에 서버가 응답을 시작한 시각(이 컴퓨터의 시간대)입니다.  

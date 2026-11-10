@@ -76,6 +76,10 @@ const inputOf = (usage: ModelUsage) =>
 
 const comma = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
+// 캐시 적중률: 반올림으로 100.0% 가 되지 않게 소수 첫째 자리에서 버린다
+const percent = (part: number, whole: number) =>
+  `${whole ? (Math.floor((part / whole) * 1000) / 10).toFixed(1) : '0.0'}%`
+
 const clock = (ms: number) => {
   const date = new Date(ms)
 
@@ -90,9 +94,13 @@ const promptLabel = (text: string, turn: Turn | undefined) => {
   const parts = [`prompt ~${comma(estimate(text))}`]
   if (turn?.added) parts.push(`context ${comma(turn.added)}`)
   if (turn?.sent) parts.push(`total input ${comma(turn.sent)}`)
-  // 서버로 보낸 양 옆 괄호에 요청 횟수와 서버가 캐시에 쓴 시각을 함께 둔다
+  // 서버로 보낸 양 옆 괄호에 캐시에서 읽은 양과 비율, 요청 횟수, 서버가 캐시에 쓴 시각을 함께 둔다
+  const notes: string[] = []
+  if (turn?.sent && turn.cacheRead !== undefined) {
+    notes.push(`cache read ${comma(turn.cacheRead)} / ${percent(turn.cacheRead, turn.sent)}`)
+  }
   const count = turn?.requests ?? 0
-  const notes = count ? [`${count} ${count === 1 ? 'request' : 'requests'}`] : []
+  if (count) notes.push(`${count} ${count === 1 ? 'request' : 'requests'}`)
   if (turn?.cachedAt) notes.push(`cached ${clock(turn.cachedAt)}`)
 
   return `${parts.join(' / ')} tokens${notes.length ? ` (${notes.join(', ')})` : ''}`
@@ -196,6 +204,7 @@ export const register: Register = on => {
       const turns = patchTurn(state, e.turnId, turn => ({
         ...turn,
         sent: (turn.sent ?? 0) + input,
+        cacheRead: (turn.cacheRead ?? 0) + usage.cache_read_input_tokens,
         requests: (turn.requests ?? 0) + 1,
         cachedAt: turn.cachedAt ?? cachedAt,
         output: turn.output + usage.output_tokens,

@@ -130,13 +130,15 @@ test('입력한 글, 첫 요청이 늘린 양, 보낸 전체 입력의 합과 �
     // 첫 턴은 견줄 직전 요청이 없어 늘린 양을 빼고, 보낸 양은 20005 + 20410
     // 캐시 시각은 요청을 보낸 13:55:02 가 아니라 서버가 응답을 시작한 2초 뒤
     const first = await lineUnder($, { ...prompt('첫 질문'), surface })
-    expect(first.line).toBe('prompt ~4 / total input 40,415 tokens (2 requests, cached 13:55:04)')
+    expect(first.line).toBe(
+      'prompt ~4 / total input 40,415 tokens (cache read 40,400 / 99.9%, 2 requests, cached 13:55:04)'
+    )
 
     // 늘린 양은 20708 - (20410 + 120) = 178, 보낸 양은 20708 + 21654
     // 첫 턴 두 요청(4초) + 1분 + 응답까지 2초
     const second = await lineUnder($, { ...prompt('두 번째 질문'), surface })
     expect(second.line).toBe(
-      'prompt ~7 / context 178 / total input 42,362 tokens (2 requests, cached 13:56:08)'
+      'prompt ~7 / context 178 / total input 42,362 tokens (cache read 42,350 / 99.9%, 2 requests, cached 13:56:08)'
     )
 
     expect((await lineUnder($, { ...reply('첫 답변'), surface })).line).toBe('output 420 tokens')
@@ -166,7 +168,9 @@ test('서브에이전트의 요청은 세지 않는다', async ($, on) => {
   const seen = await lineUnder($, { ...reply('조사했습니다.'), surface: 'terminal' })
   expect(seen.line).toBe('output 500 tokens')
   const sent = await lineUnder($, { ...prompt('조사해 줘'), surface: 'terminal' })
-  expect(sent.line).toBe('prompt ~6 / total input 40,319 tokens (2 requests, cached 13:55:02)')
+  expect(sent.line).toBe(
+    'prompt ~6 / total input 40,319 tokens (cache read 40,310 / 99.9%, 2 requests, cached 13:55:02)'
+  )
 })
 
 test('요청이 한 번이면 단수형으로 쓴다', async ($, on) => {
@@ -175,7 +179,25 @@ test('요청이 한 번이면 단수형으로 쓴다', async ($, on) => {
   await run($, server, 't1', '안녕', '안녕하세요.', 1)
 
   const seen = await lineUnder($, { ...prompt('안녕'), surface: 'terminal' })
-  expect(seen.line).toBe('prompt ~3 / total input 30,003 tokens (1 request, cached 13:55:02)')
+  expect(seen.line).toBe(
+    'prompt ~3 / total input 30,003 tokens (cache read 30,000 / 99.9%, 1 request, cached 13:55:02)'
+  )
+})
+
+test('캐시에서 읽은 양과 그 비율을 보이고, 캐시에 새로 쓴 양은 읽은 양에 넣지 않는다', async ($, on) => {
+  // 첫 요청은 캐시를 새로 쓰기만 하고, 다음 요청은 그 캐시를 읽는다
+  const server = engine(on, [
+    { ...usage(2000, 0, 100), cache_creation_input_tokens: 8000 },
+    { ...usage(50, 10000, 80), cache_creation_input_tokens: 150 }
+  ])
+
+  await run($, server, 't1', '읽어 줘', '읽었습니다.', 2)
+
+  // 읽은 10,000 / 보낸 20,200 = 49.50...%
+  const seen = await lineUnder($, { ...prompt('읽어 줘'), surface: 'terminal' })
+  expect(seen.line).toBe(
+    'prompt ~4 / total input 20,200 tokens (cache read 10,000 / 49.5%, 2 requests, cached 13:55:02)'
+  )
 })
 
 test('알림 줄과 슬래시 명령 줄은 그대로 둔다', async ($, on) => {
@@ -275,7 +297,7 @@ test('명령이 시작한 턴은 첫 답변 위에 입력 토큰을, 마지막 �
     // 한글 5자 x 1.35 + 나머지 7자 / 3.2 = 8.9
     const first = { ...reply('목표를 확인했습니다.'), requestId: 'reply-1', surface }
     expect(await textsOf($, first)).toEqual([
-      'prompt ~9 / total input 40,415 tokens (2 requests, cached 13:55:02)',
+      'prompt ~9 / total input 40,415 tokens (cache read 40,400 / 99.9%, 2 requests, cached 13:55:02)',
       'engine'
     ])
     const last = { ...reply('모두 통과했습니다.'), requestId: 'reply-2', surface }
@@ -341,13 +363,13 @@ test('같은 글을 두 번 보내도 줄 id 로 각자의 숫자를 보이고, 
     const first = { ...prompt(typed), requestId: 'row-1', surface }
     expect(await textsOf($, first)).toEqual([
       'engine',
-      'prompt ~6 / total input 20,005 tokens (1 request, cached 13:55:02)'
+      'prompt ~6 / total input 20,005 tokens (cache read 20,000 / 99.9%, 1 request, cached 13:55:02)'
     ])
     // 늘린 양은 20404 - (20005 + 300) = 99
     const second = { ...prompt(typed), requestId: 'row-2', surface }
     expect(await textsOf($, second)).toEqual([
       'engine',
-      'prompt ~6 / context 99 / total input 20,404 tokens (1 request, cached 13:55:02)'
+      'prompt ~6 / context 99 / total input 20,404 tokens (cache read 20,400 / 99.9%, 1 request, cached 13:55:02)'
     ])
 
     // 답변도 글이 같아 줄 id 로 가른다

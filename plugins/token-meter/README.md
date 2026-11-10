@@ -7,7 +7,7 @@ Read this in [한글](./README.ko.md).
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (2 requests, cached 13:56:08)
+  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, 2 requests, cached 13:56:08)
 
   고쳤습니다.
   output 2,400 tokens
@@ -32,6 +32,9 @@ For other ways to install, see the [repository README](../../README.md#install).
 - `total input N`: the sum of the input tokens sent to the server during the turn.  
   Every request resends the system prompt and the whole conversation so far.  
   So this adds up each request's full input (input + cache read + cache write).
+- `cache read N / P%`: how much of `total input` was read from the prompt cache, and its share.  
+  It adds up each request's cache read and leaves out what was newly written to the cache (cache write).  
+  The share is rounded down to one decimal place, so it never shows 100.0% unless everything came from the cache.
 - `n requests`: how many requests the turn made.  
   It goes up each time Claude uses a tool.
 - `cached HH:MM:SS`: when the server started answering the first request that carried this prompt, in this computer's time zone.  
