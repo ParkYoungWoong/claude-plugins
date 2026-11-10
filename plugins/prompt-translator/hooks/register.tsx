@@ -241,13 +241,9 @@ const desktopLineOf = (
             </Text>
           </Box>
           {isDone && (
-            <Button
-              key="toggle"
-              plain
-              dimColor
-              label={entry.isHidden ? 'Show' : 'Hide'}
-              onPress={onToggle}
-            />
+            <Button key="toggle" plain onPress={onToggle}>
+              <Text color="permissionShimmer">{entry.isHidden ? 'Show' : 'Hide'}</Text>
+            </Button>
           )}
         </Box>
         {isDone && !entry.isHidden && <Text color="suggestion">{entry.translation}</Text>}
@@ -274,13 +270,9 @@ const lineOf = ({ Box, Button, Text }: ElementTable, entry: Entry, onToggle: () 
   }
 
   const toggle = (
-    <Button
-      key="toggle"
-      plain
-      dimColor
-      label={entry.isHidden ? '[Show]' : '[Hide]'}
-      onPress={onToggle}
-    />
+    <Button key="toggle" plain onPress={onToggle}>
+      <Text color="permissionShimmer">{entry.isHidden ? '[Show]' : '[Hide]'}</Text>
+    </Button>
   )
   if (entry.isHidden) return <Box paddingLeft={2}>{toggle}</Box>
 

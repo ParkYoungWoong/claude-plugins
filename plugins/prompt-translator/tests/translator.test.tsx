@@ -300,7 +300,7 @@ test('모델이 따라 쓴 태그를 걷어 내고, 원문에 없는 빈 줄은 
 
   const ui = await $.ui.mount({ ...row('첫 줄\n둘째 줄'), surface: 'terminal' })
   // 줄마다 낱말이 이어지고, 두 줄 사이에 빈 줄(' ')이 없다
-  expect(await texts(ui)).toEqual(['engine', ' ', 'Line ', 'one.', 'Line ', 'two.'])
+  expect(await texts(ui)).toEqual(['engine', '[Hide]', ' ', 'Line ', 'one.', 'Line ', 'two.'])
   await ui.unmount()
 })
 
@@ -310,7 +310,7 @@ test('원문에 빈 줄이 있으면 번역에도 빈 줄을 한 줄까지만 �
   await submit($, '첫 문단\n\n둘째 문단')
 
   const ui = await $.ui.mount({ ...row('첫 문단\n\n둘째 문단'), surface: 'terminal' })
-  expect(await texts(ui)).toEqual(['engine', ' ', 'Para ', 'one.', ' ', 'Para ', 'two.'])
+  expect(await texts(ui)).toEqual(['engine', '[Hide]', ' ', 'Para ', 'one.', ' ', 'Para ', 'two.'])
   await ui.unmount()
 })
 
@@ -321,7 +321,9 @@ test('번역이 길게 접혀도 다음 줄이 단추 밑에서 시작하도록 
 
   const ui = await $.ui.mount({ ...row('이 버그 고쳐 줘'), surface: 'terminal' })
   // 한자와 가나는 한 글자씩 흐른다
-  expect(await texts(ui)).toEqual(['engine', ' ', ...'このバグを直して'])
+  expect(await texts(ui)).toEqual(['engine', '[Hide]', ' ', ...'このバグを直して'])
+  // 숨기기 단추는 번역(suggestion)과 같은 계열의 조금 밝은 색(permissionShimmer)이다
+  expect((await ui.find({ type: 'Text', text: '[Hide]' }))?.props?.color).toBe('permissionShimmer')
   await ui.unmount()
 })
 
@@ -335,12 +337,13 @@ test(
 
     const ui = await $.ui.mount({ ...row('이 버그 고쳐 줘\n둘째 줄'), surface: 'desktop' })
     // 낱말로 나누지 않고 한 덩어리로 그려 줄바꿈은 앱에 맡긴다
-    expect(await texts(ui)).toEqual(['engine', '日本語', 'このバグを直して\n二行目'])
+    expect(await texts(ui)).toEqual(['engine', '日本語', 'Hide', 'このバグを直して\n二行目'])
     expect(await ui.find({ type: 'Svg' })).toBeDefined()
+    expect((await ui.find({ type: 'Text', text: 'Hide' }))?.props?.color).toBe('permissionShimmer')
 
     await ui.press({ key: 'toggle' })
     expect((await ui.find({ key: 'toggle' }))?.text).toBe('Show')
-    expect(await texts(ui)).toEqual(['engine', '日本語'])
+    expect(await texts(ui)).toEqual(['engine', '日本語', 'Show'])
     await ui.unmount()
   }
 )
@@ -477,8 +480,7 @@ const respond = (
   $: Engine,
   uuid: string,
   content: (
-    | { type: 'text'; text: string }
-    | { type: 'tool_use'; id: string; name: string; input: object }
+    { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: object }
   )[]
 ) =>
   $.session.append({
