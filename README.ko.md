@@ -49,7 +49,7 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (2 requests, cached 13:56:08)
+  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, 2 requests, cached 13:56:08)
 
   고쳤습니다.
   output 2,400 tokens
