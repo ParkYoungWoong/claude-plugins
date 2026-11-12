@@ -296,18 +296,16 @@ const desktopCardOf = (
               </Text>
             )}
             {fold && (
-              // 누를 곳이 보이도록 글자에만 옅은 배경을 깔고 앞뒤에 한 칸씩 띄운다(칸을 Box 로 감싸면
-              // 데스크톱 앱이 단추 여백을 더해 머리줄보다 커진다). 고정폭 글꼴이라 -와 + 가 바뀌어도 폭이 같다
-              <Button key="fold" plain onPress={fold.onToggle}>
-                <Text
-                  size="caption"
-                  mono
-                  color="permissionShimmer"
-                  backgroundColor="rgba(128, 128, 128, 0.25)"
-                >
-                  {` ${isFolded ? UNFOLD_ICON : FOLD_ICON} `}
-                </Text>
-              </Button>
+              // 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다. 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다.
+              // 테두리가 있는 칸은 데스크톱 앱이 안쪽 여백을 더해 머리줄보다 커지므로, 테두리 없이 여백을 0 으로 둔다.
+              // 고정폭 글꼴과 앞뒤 한 칸으로 -와 + 가 바뀌어도 칸 크기가 같다
+              <Box paddingX={0} paddingY={0} backgroundColor="rgba(128, 128, 128, 0.2)">
+                <Button key="fold" plain onPress={fold.onToggle}>
+                  <Text size="caption" mono color="permissionShimmer">
+                    {` ${isFolded ? UNFOLD_ICON : FOLD_ICON} `}
+                  </Text>
+                </Button>
+              </Box>
             )}
           </Box>
         </Box>
