@@ -246,11 +246,10 @@ type Card = { icon: string; title: string; total?: string; cells: Cell[]; note?:
 // 아직 턴이 없는 입력 카드처럼 접을 곳이 없는 카드는 단추 없이 그린다
 type Fold = { isFolded: boolean; onToggle: () => unknown } | undefined
 
-// 단추 안에는 글자만 넣을 수 있어 Svg 대신 꺾쇠 글자를 쓴다: 펼친 카드는 위(접기), 접힌 카드는 아래(펼치기)
-// 꺾쇠(U+2303, U+2304)는 위아래로 치우쳐 바꿀 때 튀므로 두 글자가 같은 높이에 오는 수식 기호(U+2227, U+2228)를 쓴다
-// 데스크톱 앱은 label 이 있으면 안의 글자 대신 label 을 그리므로 label 을 주지 않는다
-const FOLD_ICON = '\u2227'
-const UNFOLD_ICON = '\u2228'
+// 단추 안에는 글자만 넣을 수 있어 Svg 대신 글자를 쓴다: 펼친 카드는 -(접기), 접힌 카드는 +(펼치기)
+// 두 글자가 같은 높이에 놓여 바꿀 때 튀지 않는다. 데스크톱 앱은 label 이 있으면 안의 글자 대신 그리므로 주지 않는다
+const FOLD_ICON = '-'
+const UNFOLD_ICON = '+'
 
 const desktopCardOf = (
   { Box, Button, Svg, Text }: ElementTable<'desktop'>,
