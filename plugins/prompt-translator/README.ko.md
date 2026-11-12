@@ -75,9 +75,9 @@ claude plugin install prompt-translator --marketplace ParkYoungWoong/claude-plug
 5. 새 세션에서 프롬프트를 보내면 입력 말풍선 바로 밑에 번역 카드가 오른쪽에 붙어 보입니다.  
    머리줄 왼쪽에 번역 언어가, 오른쪽 끝에 옅은 회색 칸에 담긴 빼기 단추가 있습니다.  
    빼기 단추를 누르면 카드가 머리줄 한 줄로 접히고 단추가 더하기로 바뀝니다. 더하기를 누르면 다시 펼쳐집니다.  
-   아래 화면은 단추를 바꾸기 전에 찍은 것이라 단추 자리에 `Hide`가 보입니다.
+   token-meter도 설치했다면 번역 카드 밑에 입력 토큰 카드가 함께 보입니다.
 
-   <img src="./images/desktop-ko-4-translation.png" alt="데스크톱 앱에서 한글 프롬프트 밑의 말풍선에 영어 번역이 보이는 화면" width="635">
+   <img src="./images/desktop-ko-4-translation.png" alt="데스크톱 앱에서 한글 프롬프트 밑의 번역 카드에 영어 번역과 빼기 단추가 보이는 화면" width="736">
 
 ## 번역 언어
 

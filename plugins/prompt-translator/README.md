@@ -75,9 +75,9 @@ The desktop app doesn't run `/plugin`, so install it from the plugin settings.
 5. In a new session, the translation shows in a card right under your prompt, aligned to the right like the prompt itself.  
    The language is at the left of its top line, and a minus button in a faint gray box is at the right end.  
    Press the minus button to fold the card down to its top line, and the button turns into a plus. Press the plus to unfold it.  
-   The screenshot below was taken before the button changed, so it shows `Hide` in its place.
+   With token-meter installed too, its input token card shows under the translation card.
 
-   <img src="./images/desktop-en-4-translation.png" alt="A Korean prompt with its English translation in a bubble under it in the desktop app" width="635">
+   <img src="./images/desktop-en-4-translation.png" alt="A Korean prompt with its English translation and a minus button in a card under it in the desktop app" width="736">
 
 ## Translation languages
 

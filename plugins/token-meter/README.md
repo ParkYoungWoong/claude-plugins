@@ -114,6 +114,10 @@ Each card sits at the right edge, like your prompts, and looks like prompt-trans
 - Input card: `Input` and the input cost on top, then a table of prompt, context, total input, uncached, cache read (with its share), cache write, requests and the time it was cached, with the cost of each part.
 - Output card: `Output` and the output cost on top, then the output tokens and the turn total.
 
+<img src="./images/desktop-cards.png" alt="An input card under the prompt and an output card under the reply, with token counts and costs, in the desktop app" width="736">
+
+The screenshot is taken with prompt-translator installed too, so a translation card sits above the input card.
+
 At the right end of each card's top line is a fold button in a faint gray box.
 
 - Press the minus button to fold that card's table away and keep only the title and the cost on its top line.  
