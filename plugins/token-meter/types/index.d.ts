@@ -39,14 +39,14 @@ export type Step = { input: number; output: number }
 
 // isSubscription: 세션이 사용량 한도 창을 알려 온 구독 로그인(Claude Code 는 캐시를 1시간 동안 둔다)
 // count: 지금까지 시작한 턴의 수(턴 번호를 매긴다)
-// folded: 접어 머리줄만 보이는 데스크톱 카드, opened: 펼친 터미널 줄(턴 id:input 또는 턴 id:output)
+// opened: 펼친 터미널 줄, openedCards: 펼친 데스크톱 카드(턴 id:input 또는 턴 id:output). 둘 다 접힌 채로 시작한다
 export type Meter = {
   last: Step | null
   turns: Turn[]
   isSubscription?: boolean
   count?: number
-  folded?: string[]
   opened?: string[]
+  openedCards?: string[]
 }
 
 declare module 'claude-code' {

@@ -592,7 +592,8 @@ const askedAbove = (
 }
 
 // 카드 하나(턴 id 와 input 또는 output)의 접힌 상태와 그것을 바꾸는 단추 동작
-// 데스크톱 카드는 펼친 채로 시작해 접은 카드를 folded 에, 터미널 줄은 접힌 채로 시작해 펼친 줄을 opened 에 적는다
+// 터미널 줄과 데스크톱 카드 모두 접힌 채로 시작하고, 펼친 줄은 opened 에, 펼친 카드는 openedCards 에 적는다
+// 두 화면의 펼침 상태는 따로 간다
 const MARKED = KEEP * 2
 const foldOf = (
   $: StateDollar,
@@ -603,11 +604,10 @@ const foldOf = (
 ): Fold => {
   if (!turn) return undefined
   const key = `${turn.id}:${side}`
-  const field = surface === 'desktop' ? 'folded' : 'opened'
-  const isMarked = state[field]?.includes(key) === true
+  const field = surface === 'desktop' ? 'openedCards' : 'opened'
 
   return {
-    isFolded: field === 'folded' ? isMarked : !isMarked,
+    isFolded: state[field]?.includes(key) !== true,
     onToggle: () =>
       change($, one => {
         const marked = one[field] ?? []

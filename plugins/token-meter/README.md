@@ -5,7 +5,7 @@ A turn is one prompt and all the work Claude does for it.
 Each turn's input appears under its prompt and its output under the turn's last reply, with the turn number.  
 Costs are priced at the Anthropic API list price, with cache reads and cache writes counted apart.  
 In the terminal each starts as one folded line, which unfolds into a table with token, share and cost columns lined up.  
-In the desktop app the same numbers start as unfolded cards.
+In the desktop app the same numbers show as cards, which also start folded.
 
 Read this in [한글](./README.ko.md).
 
@@ -164,17 +164,17 @@ A card holds everything the terminal table does.
 
 <img src="./images/desktop-cards.png" alt="An input card under the prompt and an output card under the reply, with token counts and costs, in the desktop app" width="736">
 
-The screenshot is taken with prompt-translator installed too, so a translation card sits above the input card.
+The screenshot shows both cards unfolded, with prompt-translator installed too, so a translation card sits above the input card.
 
-At the right end of each card's top line is a fold button in a faint gray box.
+A card starts folded, showing only its top line.  
+The top line holds the title, the turn number, the total tokens and the cost, the same as a folded terminal line (for example `Input (turn 3)  42,362 tok  $0.0105`).  
+At its right end is a fold button in a faint gray box.
 
-- Press the minus button to fold that card's table away, leaving the title, the turn number, the total tokens and the cost on its top line.  
-  That is the same as a folded terminal line (for example `Input (turn 3)  42,362 tok  $0.0105`).  
-  The button turns into a plus, which unfolds the card again.
+- Press the plus button to unfold the card, showing a line of context and the table, and the button turns into a minus.  
+  Press the minus button to fold it again.
 - Each card folds on its own.  
   The input card and the output card of the same turn fold apart too.
-- Terminal lines start folded and desktop cards start unfolded.  
-  Folding or unfolding on one screen doesn't touch the other.
+- Folding or unfolding on one screen (the terminal or the desktop app) doesn't touch the other.
 
 ## Turning it off
 
