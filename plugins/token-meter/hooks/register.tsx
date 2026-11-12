@@ -303,7 +303,7 @@ const desktopCardOf = (
                   size="caption"
                   mono
                   color="permissionShimmer"
-                  backgroundColor="rgba(128, 128, 128, 0.15)"
+                  backgroundColor="rgba(128, 128, 128, 0.25)"
                 >
                   {` ${isFolded ? UNFOLD_ICON : FOLD_ICON} `}
                 </Text>
