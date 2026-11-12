@@ -247,6 +247,7 @@ type Card = { icon: string; title: string; total?: string; cells: Cell[]; note?:
 type Fold = { isFolded: boolean; onToggle: () => unknown } | undefined
 
 // 단추 안에는 글자만 넣을 수 있어 Svg 대신 꺾쇠 글자를 쓴다: 펼친 카드는 위(접기), 접힌 카드는 아래(펼치기)
+// 데스크톱 앱은 label 이 있으면 안의 글자 대신 label 을 그리므로 label 을 주지 않는다
 const FOLD_ICON = '\u2303'
 const UNFOLD_ICON = '\u2304'
 
@@ -295,7 +296,7 @@ const desktopCardOf = (
               </Text>
             )}
             {fold && (
-              <Button key="fold" label={isFolded ? 'Show' : 'Hide'} plain onPress={fold.onToggle}>
+              <Button key="fold" plain onPress={fold.onToggle}>
                 <Text size="caption" color="permissionShimmer">
                   {isFolded ? UNFOLD_ICON : FOLD_ICON}
                 </Text>
