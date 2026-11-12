@@ -14,6 +14,8 @@ Read this in [한글](./README.ko.md).
 
 ## Install
 
+It needs Claude Code 2.1.299 or later.
+
 ### Claude Code CLI
 
 Run this from the prompt of a Claude Code terminal session.
@@ -157,11 +159,14 @@ They count toward the usage of the account signed in to the session.
 
 ## Turning it off
 
-Turn off prompt-translator in `/plugin`, or run this in a shell.
+In the terminal, turn off prompt-translator in `/plugin`, or run this in a shell.
 
 ```bash
 claude plugin disable prompt-translator@heropy-plugins
 ```
+
+In the desktop app, click the + button next to the prompt box, open Plugins and then the item that manages them, and in the Yours tab open the menu to the right of Prompt translator and turn it off.  
+The same menu also removes the plugin.
 
 ## Development
 

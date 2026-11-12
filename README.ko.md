@@ -59,8 +59,9 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 
 ## 요구 사항
 
-두 플러그인 모두 훅 모듈로 동작하는 Mod라서, Mod를 지원하는 Claude Code가 필요합니다.  
-Claude Code 2.1.322의 터미널과 클로드 데스크톱 앱 5.1231(Claude Code 2.1.321)에서 확인했습니다.
+두 플러그인은 Claude Code 화면에 줄이나 카드를 더하는 Mod(훅 모듈로 동작하는 플러그인)라서, Claude Code 2.1.299 이상이 필요합니다.  
+2.1.299부터 2.1.322 사이의 여러 버전에서 두 플러그인의 시험이 모두 통과했고, 바로 앞 버전인 2.1.296에서는 token-meter의 일부 표시가 다르게 그려집니다.  
+실제 화면은 Claude Code 2.1.322의 터미널과 클로드 데스크톱 앱 5.1231(Claude Code 2.1.321)에서 확인했습니다.
 
 플러그인을 업데이트한 뒤에는 이미 열려 있는 세션에서 `/reload-plugins`를 실행하거나 새 세션을 열어야 바뀐 내용이 보입니다.
 

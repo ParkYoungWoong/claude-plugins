@@ -24,6 +24,7 @@ Read this in [한글](./README.ko.md).
 ```
 
 Answer `y` to `Add marketplace?` and pick a scope, and the plugin starts working right away.  
+It needs Claude Code 2.1.299 or later.  
 For other ways to install, see the [repository README](../../README.md#install).
 
 ## What it shows
@@ -176,11 +177,14 @@ At the right end of each card's top line is a fold button in a faint gray box.
 
 ## Turning it off
 
-Turn off token-meter in `/plugin`, or run this in a shell.
+In the terminal, turn off token-meter in `/plugin`, or run this in a shell.
 
 ```bash
 claude plugin disable token-meter@heropy-plugins
 ```
+
+In the desktop app, click the + button next to the prompt box, open Plugins and then the item that manages them, and in the Yours tab open the menu to the right of Token meter and turn it off.  
+The same menu also removes the plugin.
 
 ## Development
 

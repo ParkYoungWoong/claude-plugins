@@ -59,8 +59,9 @@ In the desktop app, the same numbers show as an input card and an output card at
 
 ## Requirements
 
-Both plugins are mods, plugins that run as a hooks module, so they need a version of Claude Code that supports mods.  
-They were tested on Claude Code 2.1.322 in the terminal and in the Claude desktop app 5.1231 (Claude Code 2.1.321).
+Both plugins are mods (plugins that run as a hooks module and add lines or cards to the Claude Code screen), so they need Claude Code 2.1.299 or later.  
+Their tests pass on several releases from 2.1.299 to 2.1.322, and on 2.1.296, the release before, some of token-meter's lines come out differently.  
+They were checked on screen in Claude Code 2.1.322 in the terminal and in the Claude desktop app 5.1231 (Claude Code 2.1.321).
 
 After you update a plugin, run `/reload-plugins` in a session that is already open, or open a new session, to see the change.
 

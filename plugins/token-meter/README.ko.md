@@ -24,6 +24,7 @@
 ```
 
 `Add marketplace?`에 `y`로 답하고 설치 범위를 고르면 바로 동작합니다.  
+Claude Code 2.1.299 이상이 필요합니다.  
 다른 설치 방법은 [저장소 README](../../README.ko.md#설치)를 참고하세요.
 
 ## 표시 항목
@@ -176,11 +177,14 @@ Haiku 5.5는 요청마다 그 요청의 전체 입력으로 정가를 고릅니�
 
 ## 끄기
 
-`/plugin`에서 token-meter를 끄거나, 셸에서 다음 명령을 실행합니다.
+터미널에서는 `/plugin`에서 token-meter를 끄거나, 셸에서 다음 명령을 실행합니다.
 
 ```bash
 claude plugin disable token-meter@heropy-plugins
 ```
+
+데스크톱 앱에서는 입력창 옆 + 단추에서 `플러그인 > 플러그인 관리`를 열고, `내 항목` 탭의 Token meter 오른쪽 추가 작업 메뉴에서 `끄기`를 누릅니다.  
+같은 메뉴의 `제거`는 플러그인을 지웁니다.
 
 ## 개발
 

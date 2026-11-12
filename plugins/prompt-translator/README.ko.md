@@ -14,6 +14,8 @@
 
 ## 설치
 
+Claude Code 2.1.299 이상이 필요합니다.
+
 ### Claude Code CLI
 
 Claude Code 터미널 세션의 프롬프트에서 실행합니다.
@@ -157,11 +159,14 @@ claude plugin install prompt-translator --marketplace ParkYoungWoong/claude-plug
 
 ## 끄기
 
-`/plugin`에서 prompt-translator를 끄거나, 셸에서 다음 명령을 실행합니다.
+터미널에서는 `/plugin`에서 prompt-translator를 끄거나, 셸에서 다음 명령을 실행합니다.
 
 ```bash
 claude plugin disable prompt-translator@heropy-plugins
 ```
+
+데스크톱 앱에서는 입력창 옆 + 단추에서 `플러그인 > 플러그인 관리`를 열고, `내 항목` 탭의 Prompt translator 오른쪽 추가 작업 메뉴에서 `끄기`를 누릅니다.  
+같은 메뉴의 `제거`는 플러그인을 지웁니다.
 
 ## 개발
 
