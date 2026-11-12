@@ -246,9 +246,10 @@ type Card = { icon: string; title: string; total?: string; cells: Cell[]; note?:
 // 아직 턴이 없는 입력 카드처럼 접을 곳이 없는 카드는 단추 없이 그린다
 type Fold = { isFolded: boolean; onToggle: () => unknown } | undefined
 
-// 단추 안에는 글자만 넣을 수 있어 Svg 대신 글자를 쓴다: 펼친 카드는 -(접기), 접힌 카드는 +(펼치기)
-// 두 글자가 같은 높이에 놓여 바꿀 때 튀지 않는다. 데스크톱 앱은 label 이 있으면 안의 글자 대신 그리므로 주지 않는다
-const FOLD_ICON = '-'
+// 단추 안에는 글자만 넣을 수 있어 Svg 대신 글자를 쓴다: 펼친 카드는 빼기(접기), 접힌 카드는 더하기(펼치기)
+// 하이픈은 더하기보다 낮게 놓여서 더하기와 같은 높이, 같은 폭인 빼기 기호(U+2212)를 쓴다
+// 데스크톱 앱은 label 이 있으면 안의 글자 대신 그리므로 주지 않는다
+const FOLD_ICON = '\u2212'
 const UNFOLD_ICON = '+'
 
 const desktopCardOf = (
@@ -297,9 +298,17 @@ const desktopCardOf = (
             )}
             {fold && (
               // 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다. 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다.
-              // 테두리가 있는 칸은 데스크톱 앱이 안쪽 여백을 더해 머리줄보다 커지므로, 테두리 없이 여백을 0 으로 둔다.
-              // 고정폭 글꼴과 앞뒤 한 칸으로 -와 + 가 바뀌어도 칸 크기가 같다
-              <Box paddingX={0} paddingY={0} backgroundColor="rgba(128, 128, 128, 0.2)">
+              // 모서리는 테두리가 있을 때만 둥글게 그려져 투명한 테두리를 두고, 칸이 커지지 않게 여백은 0 으로 못박는다.
+              // 고정폭 글꼴과 앞뒤 한 칸으로 빼기와 더하기가 바뀌어도 칸 크기가 같다
+              <Box
+                paddingX={0}
+                paddingY={0}
+                alignItems="center"
+                justifyContent="center"
+                borderStyle="round"
+                borderColor="rgba(128, 128, 128, 0)"
+                backgroundColor="rgba(128, 128, 128, 0.12)"
+              >
                 <Button key="fold" plain onPress={fold.onToggle}>
                   <Text size="caption" mono color="permissionShimmer">
                     {` ${isFolded ? UNFOLD_ICON : FOLD_ICON} `}
