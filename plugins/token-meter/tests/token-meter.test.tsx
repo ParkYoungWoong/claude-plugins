@@ -277,8 +277,8 @@ const complete = ($: Engine, turnId: string, answer: string) =>
 
 // 데스크톱 앱의 출력 카드: 출력 420 토큰, 앞의 두 요청을 더한 턴 비용
 // 카드 머리줄의 접기 단추(펼친 카드는 위 꺾쇠, 접힌 카드는 아래 꺾쇠)
-const FOLD = '\u2303'
-const UNFOLD = '\u2304'
+const FOLD = '\u2227'
+const UNFOLD = '\u2228'
 
 const OUTPUT_CARD = [
   'engine',
