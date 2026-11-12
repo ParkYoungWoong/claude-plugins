@@ -1,5 +1,7 @@
 export type Turn = {
   id: string
+  // 세션에서 몇 번째로 시작한 턴인지(1부터)
+  number?: number
   // 입력한 글: 프롬프트 줄과 같은 글, 명령이면 입력한 명령 줄(/goal ...)
   prompt: string
   // 이 턴을 시작한 입력 줄의 id: 화면은 줄을 이 id 로 그린다
@@ -36,8 +38,16 @@ export type Cost = { input: number; cacheRead: number; cacheWriteBase: number; o
 export type Step = { input: number; output: number }
 
 // isSubscription: 세션이 사용량 한도 창을 알려 온 구독 로그인(Claude Code 는 캐시를 1시간 동안 둔다)
-// folded: 접어 머리줄만 보이는 데스크톱 카드(턴 id:input 또는 턴 id:output)
-export type Meter = { last: Step | null; turns: Turn[]; isSubscription?: boolean; folded?: string[] }
+// count: 지금까지 시작한 턴의 수(턴 번호를 매긴다)
+// folded: 접어 머리줄만 보이는 데스크톱 카드, opened: 펼친 터미널 줄(턴 id:input 또는 턴 id:output)
+export type Meter = {
+  last: Step | null
+  turns: Turn[]
+  isSubscription?: boolean
+  count?: number
+  folded?: string[]
+  opened?: string[]
+}
 
 declare module 'claude-code' {
   interface PluginState {

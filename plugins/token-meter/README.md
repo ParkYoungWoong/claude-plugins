@@ -8,11 +8,10 @@ Read this in [한글](./README.ko.md).
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, cache write 247, 2 requests, cached 13:56:08)
-  input cost $0.0105 (uncached $0.0001, cache read $0.0084, cache write 1h $0.0020)
+  [+] INPUT   42,362 tok  $0.0105  (turn 3 / 2 requests / cached 13:56:08)
 
   고쳤습니다.
-  output 2,400 tokens / $0.0480 (turn $0.0585)
+  [+] OUTPUT   2,400 tok  $0.0480  (turn 3 / turn total $0.0585)
 ```
 
 ## Install
@@ -26,29 +25,64 @@ For other ways to install, see the [repository README](../../README.md#install).
 
 ## What it shows
 
-- `prompt ~N`: tokens estimated from the length of what you typed.  
-  Hangul counts as about 1.35 tokens per character, and other characters as 1 token per 3.2 characters (measured on Opus 5.5).
-- `context N`: the tokens this prompt actually added to the context.  
-  It is the input of the turn's first request minus the input and output of the request before it.  
-  It is left out on the first turn and right after compaction or `/clear`.
-- `total input N`: the sum of the input tokens sent to the server during the turn.  
-  Every request resends the system prompt and the whole conversation so far.  
-  So this adds up each request's full input (input + cache read + cache write).
-- `cache read N / P%`: how much of `total input` was read from the prompt cache, and its share.  
-  It adds up each request's cache read and leaves out what was newly written to the cache (cache write).  
-  The share is rounded down to one decimal place, so it never shows 100.0% unless everything came from the cache.
-- `cache write N`: how much of `total input` was newly written to the prompt cache.  
-  It is left out when nothing was written.
-- `n requests`: how many requests the turn made.  
+In the terminal, the input and the output each show as one folded line.  
+Press `[+]` in front of a line to unfold it into a table, and `[-]` to fold it again.  
+Each line folds on its own, and an unfolded line stays unfolded for the session.
+
+```plaintext
+> 이 버그를 고쳐 줄래
+  [-] INPUT  (turn 3 / 2 requests / cached 13:56:08)
+                       TOK       %      COST
+      total         42,362           $0.0105
+      cache read    42,100   99.3%   $0.0084
+      cache write      247    0.5%   $0.0020   (1h)
+      uncached          15    0.0%   $0.0001
+      prompt           ~12
+      context           15
+
+  고쳤습니다.
+  [-] OUTPUT  (turn 3)
+                       TOK              COST
+      output         2,400           $0.0480
+      turn total                     $0.0585
+```
+
+The context in parentheses on the top line:
+
+- `turn N`: which turn of the session this is.  
+  Turns a person starts (a prompt, or a command such as `/goal`) are counted from 1, and the count goes on after `/clear`.  
+  Turns from before the plugin was installed are not counted.
+- `N requests`: how many requests the turn made.  
   It goes up each time Claude uses a tool.
 - `cached HH:MM:SS`: when the server started answering the first request that carried this prompt, in this computer's time zone.  
   By then the prompt has been written to the prompt cache.
-- `output N`: the output tokens of every request in the turn, thinking and tool calls included.
+- `turn total $N` (on the folded output line): what the turn costs, input and output together.
+
+The input table:
+
+- `total`: the input tokens sent to the server during the turn, and what they cost.  
+  Every request resends the system prompt and the whole conversation so far, so this adds up each request's full input (input + cache read + cache write).  
+  The tokens and costs of the three rows below it (`cache read`, `cache write`, `uncached`) add up to `total`.
+- `cache read`: tokens read from the prompt cache.
+- `cache write`: tokens newly written to the prompt cache.  
+  The `(1h)` or `(5m)` at the end is how long the cache keeps them, and the row is left out when nothing was written.
+- `uncached`: input that did not go through the cache.
+- `%`: the row's share of `total`.  
+  It is rounded down to one decimal place, so it never shows 100.0% unless everything came from that row.
+- `prompt ~N`: tokens estimated from the length of what you typed.  
+  Hangul counts as about 1.35 tokens per character, and other characters as 1 token per 3.2 characters (measured on Opus 5.5).
+- `context N`: the tokens this prompt actually added to the context.  
+  It is the input of the turn's first request minus the input and output of the request before it, and it is left out on the first turn and right after compaction or `/clear`.
+
+The output table:
+
+- `output`: the output tokens of every request in the turn, thinking and tool calls included, and what they cost.
+- `turn total`: what the turn costs, input and output together.
+
+The number columns are right-aligned, so commas, decimal points, `%` and `$` line up from row to row.  
+Names and column headings are dimmed, and the numbers on a total row are bold.
 
 ## Cost
-
-- `input cost $N`: what the turn's input costs, split into uncached input, cache read and cache write.
-- `output N tokens / $N`: what the output costs, and `turn $N` in parentheses is input and output together.
 
 Each request is priced on its own, at the list price of the model that answered it.  
 So a turn whose model changes partway (a fallback, `/model`) is still priced right.  
@@ -89,12 +123,17 @@ Things to know:
 - On a subscription that has gone into extra usage, Claude Code writes the cache for 5 minutes, but `auto` still prices it at 1 hour.  
   Set `cacheTtl` to `5m` if that matters.
 - Subagent requests and Claude Code's own small background requests are not counted, so the total can be lower than `/cost`.
-- A turn that used a model with no price in the table shows `input cost unknown` and no output cost.
+- A turn that used a model missing from the price table shows `$?` in place of the cost, and its unfolded table names that model with no cost column.
 
 ## When the numbers fill in
 
-Before the first response arrives, only `prompt ~N tokens` shows.  
-The rest fills in once the response comes in.  
+Before the first response arrives, only the estimated prompt tokens and the turn number show, with no button since there is no table to unfold yet.
+
+```plaintext
+      INPUT      ~12 tok           (turn 3 / waiting for response)
+```
+
+The rest fills in and the button appears once the response comes in.  
 Subagent requests are not counted, and notification rows are left alone.
 
 ## Slash commands and prompts sent mid-turn
@@ -103,7 +142,7 @@ Subagent requests are not counted, and notification rows are left alone.
   So its input tokens show right above the first reply of that turn.  
   `prompt ~N` is estimated from the command line you typed, and `context N` includes the instructions the command adds.
 - Commands that don't start a turn, such as `/rename`, show nothing.
-- A prompt you send while Claude is working joins the running turn, so it shows only `prompt ~N tokens`.  
+- A prompt you send while Claude is working joins the running turn, so it shows only its estimated tokens (`~N tok`).  
   Its tokens are counted in the numbers of the turn that was running.
 
 ## Claude desktop app
@@ -111,8 +150,11 @@ Subagent requests are not counted, and notification rows are left alone.
 In Claude Code in the Claude desktop app, the numbers show in the same places as cards instead of lines.  
 Each card sits at the right edge, like your prompts, and looks like prompt-translator's translation card.
 
-- Input card: `Input` and the input cost on top, then a table of prompt, context, total input, uncached, cache read (with its share), cache write, requests and the time it was cached, with the cost of each part.
-- Output card: `Output` and the output cost on top, then the output tokens and the turn total.
+A card holds everything the terminal table does.
+
+- Input card: `Input` and the input cost on top.  
+  Under it, one line gives the turn number, the requests and the time it was cached, and a table lists total, cache read, cache write (with how long the cache keeps it), uncached, prompt and context in token, share and cost columns.
+- Output card: `Output` and the output cost on top, then the turn number, the output tokens and the turn total.
 
 <img src="./images/desktop-cards.png" alt="An input card under the prompt and an output card under the reply, with token counts and costs, in the desktop app" width="736">
 
@@ -124,9 +166,7 @@ At the right end of each card's top line is a fold button in a faint gray box.
   The button turns into a plus, which unfolds the card again.
 - Each card folds on its own.  
   The input card and the output card of the same turn fold apart too.
-- A folded card stays folded for the session, even when the screen is drawn again.
-
-Lines in the terminal are short already, so they have no fold button.
+- Desktop cards start unfolded and terminal lines start folded, and each screen keeps its own folding.
 
 ## Turning it off
 

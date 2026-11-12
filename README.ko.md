@@ -35,26 +35,26 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 입력한 프롬프트를 고른 언어로 번역해 프롬프트 바로 밑에 보여 줍니다.  
 언어는 설치할 때 English (US), English (UK), 한글, 日本語, 中文 (简体), Español 중에서 고르고, 기본값은 English (US)입니다.  
 번역은 보기 전용이고, Claude는 입력한 원문을 그대로 처리합니다.  
-터미널에서는 번역 앞의 `[Hide]`로, 데스크톱 앱에서는 입력 말풍선 밑 번역 카드의 빼기 단추로 번역을 접습니다.
+터미널에서는 번역 앞의 `[-]`로, 데스크톱 앱에서는 입력 말풍선 밑 번역 카드의 빼기 단추로 번역을 접습니다.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
-  [Hide] Can you add error handling to this function?
+  [-] Can you add error handling to this function?
 ```
 
 ### [token-meter](./plugins/token-meter/README.ko.md)
 
 각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 API 정가로 매긴 비용과 함께 보여 줍니다.  
 캐시 읽기와 쓰기를 나눠 셈하고, 턴 중간에 모델이 바뀌어도 요청마다 그 모델의 정가로 매깁니다.  
-데스크톱 앱에서는 오른쪽 끝에 붙은 입력 카드와 출력 카드로 보이고, 카드마다 빼기 단추로 접어 제목과 금액만 남길 수 있습니다.
+터미널에서는 턴 번호와 함께 접힌 한 줄로 보이고, `[+]`를 누르면 토큰, 비율, 비용 열을 맞춘 표로 펼쳐집니다.  
+데스크톱 앱에서는 오른쪽 끝에 붙은 입력 카드와 출력 카드로 같은 내용이 보이고, 카드마다 빼기 단추로 접어 제목과 금액만 남길 수 있습니다.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, cache write 247, 2 requests, cached 13:56:08)
-  input cost $0.0105 (uncached $0.0001, cache read $0.0084, cache write 1h $0.0020)
+  [+] INPUT   42,362 tok  $0.0105  (turn 3 / 2 requests / cached 13:56:08)
 
   고쳤습니다.
-  output 2,400 tokens / $0.0480 (turn $0.0585)
+  [+] OUTPUT   2,400 tok  $0.0480  (turn 3 / turn total $0.0585)
 ```
 
 ## 요구 사항

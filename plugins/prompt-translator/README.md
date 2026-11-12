@@ -8,7 +8,7 @@ Read this in [한글](./README.ko.md).
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
-  [Hide] Can you add error handling to this function?
+  [-] Can you add error handling to this function?
 ```
 
 ## Install
@@ -109,8 +109,8 @@ After switching to `日本語`, the same kind of prompt is translated into Japan
 - Translation and Claude's work start at the same time.  
   `Translating...` shows under the prompt until the translation is ready, and then the same spot turns into the translation.
 - The translation is attached to the prompt row, so it scrolls along with the transcript.
-- Click `[Hide]` in front of a translation to hide that translation alone, and it turns into `[Show]`.  
-  Click `[Show]` to bring the translation back.
+- Click `[-]` in front of a translation to fold that translation alone, and it turns into `[+]` followed by the translation language.  
+  Click `[+]` to bring the translation back. The same button folds token-meter's lines.
 - The translation starts right after the button, and a long one wraps under the button instead of leaving an empty column beside it.  
   Line breaks follow your prompt: a blank line shows up only where your prompt has one.
 - Code, file paths, commands, identifiers, URLs, @mentions, and anything inside backticks stay as written.  
@@ -120,7 +120,7 @@ After switching to `日本語`, the same kind of prompt is translated into Japan
 - For a slash command that puts Claude to work, such as `/goal` or a skill, the text after the command (its arguments) is translated.  
   A command row has no spot a mod can draw under, so the translation shows right above Claude's first reply to that command.
 - It also works in Claude Code in the Claude desktop app, where the translation is drawn as a card under the prompt.  
-  Instead of `[Hide]`/`[Show]`, the minus and plus button at the right end of the card's top line folds and unfolds it (the same button as on token-meter's cards).  
+  Instead of `[-]`/`[+]`, the minus and plus button at the right end of the card's top line folds and unfolds it (the same button as on token-meter's cards).  
   A first prompt sent before the app attaches its view to the session is translated as soon as the view attaches.
 
 ## When it doesn't translate

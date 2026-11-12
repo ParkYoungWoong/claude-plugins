@@ -23,9 +23,9 @@ const row = (text: string) =>
 const SURFACES = ['terminal', 'desktop'] as const
 
 // 숨기기 단추의 글: 터미널은 대괄호로 감싸고, 데스크톱 앱은 앱의 단추 모양으로 그린다
-// 데스크톱 앱의 단추는 빼기 기호(U+2212)와 더하기를 고정폭 글꼴로 앞뒤 한 칸씩 띄워 그린다
-const HIDE = { terminal: '[Hide]', desktop: ' \u2212 ' }
-const SHOW = { terminal: '[Show]', desktop: ' + ' }
+// 접기 단추: 터미널은 [-] 와 [+], 데스크톱 앱은 빼기 기호(U+2212)와 더하기를 고정폭 글꼴로 앞뒤 한 칸씩 띄워 그린다
+const HIDE = { terminal: '[-]', desktop: ' \u2212 ' }
+const SHOW = { terminal: '[+]', desktop: ' + ' }
 
 type Mounted = { findAll: (query: { type: 'Text' }) => Promise<{ text?: string }[]> }
 
@@ -110,7 +110,7 @@ test(
     ])
     expect(seen.systems[0]).toContain('into Japanese.')
     const ui = await $.ui.mount({ ...row('이 버그 고쳐 줘'), surface: 'terminal' })
-    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[Hide]')
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[-]')
     await ui.unmount()
   }
 )
@@ -164,6 +164,8 @@ test('번역마다 아이콘으로 숨기고 다시 보인다', async ($, on) =>
     await first.press({ key: 'toggle' })
     expect((await first.find({ key: 'toggle' }))?.text).toBe(SHOW[surface])
     expect((await shown(first)).includes('Run the tests.')).toBe(false)
+    // 접은 줄에도 번역 언어는 남아 무엇이 접혀 있는지 알 수 있다
+    expect(await first.find({ type: 'Text', text: /English \(US\)/ })).toBeDefined()
     // 다른 번역은 그대로 보인다
     expect(await shown(second)).toContain('Run the tests.')
 
@@ -301,7 +303,7 @@ test('모델이 따라 쓴 태그를 걷어 내고, 원문에 없는 빈 줄은 
 
   const ui = await $.ui.mount({ ...row('첫 줄\n둘째 줄'), surface: 'terminal' })
   // 줄마다 낱말이 이어지고, 두 줄 사이에 빈 줄(' ')이 없다
-  expect(await texts(ui)).toEqual(['engine', '[Hide]', ' ', 'Line ', 'one.', 'Line ', 'two.'])
+  expect(await texts(ui)).toEqual(['engine', '[-]', ' ', 'Line ', 'one.', 'Line ', 'two.'])
   await ui.unmount()
 })
 
@@ -311,7 +313,7 @@ test('원문에 빈 줄이 있으면 번역에도 빈 줄을 한 줄까지만 �
   await submit($, '첫 문단\n\n둘째 문단')
 
   const ui = await $.ui.mount({ ...row('첫 문단\n\n둘째 문단'), surface: 'terminal' })
-  expect(await texts(ui)).toEqual(['engine', '[Hide]', ' ', 'Para ', 'one.', ' ', 'Para ', 'two.'])
+  expect(await texts(ui)).toEqual(['engine', '[-]', ' ', 'Para ', 'one.', ' ', 'Para ', 'two.'])
   await ui.unmount()
 })
 
@@ -322,9 +324,9 @@ test('번역이 길게 접혀도 다음 줄이 단추 밑에서 시작하도록 
 
   const ui = await $.ui.mount({ ...row('이 버그 고쳐 줘'), surface: 'terminal' })
   // 한자와 가나는 한 글자씩 흐른다
-  expect(await texts(ui)).toEqual(['engine', '[Hide]', ' ', ...'このバグを直して'])
+  expect(await texts(ui)).toEqual(['engine', '[-]', ' ', ...'このバグを直して'])
   // 숨기기 단추는 번역(suggestion)과 같은 계열의 조금 밝은 색(permissionShimmer)이다
-  expect((await ui.find({ type: 'Text', text: '[Hide]' }))?.props?.color).toBe('permissionShimmer')
+  expect((await ui.find({ type: 'Text', text: '[-]' }))?.props?.color).toBe('permissionShimmer')
   await ui.unmount()
 })
 
@@ -415,7 +417,7 @@ test('다른 Mod 가 프롬프트 줄 밑에 붙인 줄보다 번역이 먼저 �
   expect(text.indexOf('Run the tests.')).toBeLessThan(text.indexOf('prompt ~10 tokens'))
   // 자리를 옮겨도 숨기기 단추는 그대로 동작한다
   await ui.press({ key: 'toggle' })
-  expect((await ui.find({ key: 'toggle' }))?.text).toBe('[Show]')
+  expect((await ui.find({ key: 'toggle' }))?.text).toBe('[+]')
   expect((await shown(ui)).includes('Run the tests.')).toBe(false)
   expect(await ui.find({ type: 'Text', text: 'prompt ~10 tokens' })).toBeDefined()
   await ui.unmount()

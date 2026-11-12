@@ -35,26 +35,26 @@ See the [prompt-translator README](./plugins/prompt-translator/README.md#claude-
 Translates the prompts you type into the language you choose and shows the translation right under each prompt.  
 You pick the language when you install it: English (US), English (UK), 한글, 日本語, 中文 (简体) or Español, with English (US) as the default.  
 The translation is only for reading, and Claude still works from your original prompt.  
-Fold a translation with `[Hide]` in front of it in the terminal, or with the minus button on its card under your prompt in the desktop app.
+Fold a translation with `[-]` in front of it in the terminal, or with the minus button on its card under your prompt in the desktop app.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
-  [Hide] Can you add error handling to this function?
+  [-] Can you add error handling to this function?
 ```
 
 ### [token-meter](./plugins/token-meter)
 
 Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply, each with what it costs at the API list price.  
 Cache reads and writes are priced apart, and each request is priced at its own model's rate even when the model changes mid-turn.  
-In the desktop app, they show as an input card and an output card at the right edge, and the minus button on each card folds it down to its title and cost.
+In the terminal, each shows as one folded line with the turn number, and `[+]` unfolds it into a table with token, share and cost columns lined up.  
+In the desktop app, the same numbers show as an input card and an output card at the right edge, and the minus button on each card folds it down to its title and cost.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, cache write 247, 2 requests, cached 13:56:08)
-  input cost $0.0105 (uncached $0.0001, cache read $0.0084, cache write 1h $0.0020)
+  [+] INPUT   42,362 tok  $0.0105  (turn 3 / 2 requests / cached 13:56:08)
 
   고쳤습니다.
-  output 2,400 tokens / $0.0480 (turn $0.0585)
+  [+] OUTPUT   2,400 tok  $0.0480  (turn 3 / turn total $0.0585)
 ```
 
 ## Requirements

@@ -189,43 +189,40 @@ const clock = (ms: number) => {
     .join(':')
 }
 
-// 입력한 글(어림), 이번 턴에 새로 들어간 양, 서버로 보낸 양
-// 이름은 API 와 Claude Code 의 용어에 맞춘다: total input 은 input + cache read + cache write
-const promptLabel = (text: string, turn: Turn | undefined) => {
-  const parts = [`prompt ~${comma(estimate(text))}`]
-  if (turn?.added) parts.push(`context ${comma(turn.added)}`)
-  if (turn?.sent) parts.push(`total input ${comma(turn.sent)}`)
-  // 서버로 보낸 양 옆 괄호에 캐시에서 읽은 양과 비율, 요청 횟수, 서버가 캐시에 쓴 시각을 함께 둔다
-  const notes: string[] = []
-  if (turn?.sent && turn.cacheRead !== undefined) {
-    notes.push(`cache read ${comma(turn.cacheRead)} / ${percent(turn.cacheRead, turn.sent)}`)
-  }
-  if (turn?.cacheWrite) notes.push(`cache write ${comma(turn.cacheWrite)}`)
-  const count = turn?.requests ?? 0
-  if (count) notes.push(`${count} ${count === 1 ? 'request' : 'requests'}`)
-  if (turn?.cachedAt) notes.push(`cached ${clock(turn.cachedAt)}`)
-
-  return `${parts.join(' / ')} tokens${notes.length ? ` (${notes.join(', ')})` : ''}`
+// 입력과 출력의 내용은 화면과 무관한 하나의 표(Sheet)로 만들고, 터미널과 데스크톱은 그 표를 각자 그린다.
+// 그래서 두 화면에 같은 정보가 들어간다
+// 표의 한 줄: 이름, 토큰 수, 전체 입력에서 차지하는 비율, 비용, 메모(캐시 보존 시간)
+type Row = {
+  label: string
+  tokens?: string
+  share?: string
+  cost?: string
+  note?: string
+  isTotal?: boolean
 }
 
-// 입력 비용: 캐시를 거치지 않은 입력, 캐시 읽기, 캐시 쓰기(보존 시간과 함께)로 나눈다
-const inputCostLabel = (turn: Turn | undefined, ttl: Ttl) => {
-  if (turn?.unpriced) return `input cost unknown (no price for ${turn.unpriced})`
-  const cost = turn?.cost
-  if (!cost) return undefined
-  const parts = [`uncached ${money(cost.input)}`, `cache read ${money(cost.cacheRead)}`]
-  if (cost.cacheWriteBase) parts.push(`cache write ${ttl} ${money(writeCostOf(cost, ttl))}`)
+type Side = 'input' | 'output'
 
-  return `input cost ${money(inputCostOf(cost, ttl))} (${parts.join(', ')})`
+// meta: 머리줄 괄호에 넣는 맥락(턴 번호, 요청 횟수, 캐시에 쓴 시각)
+// summary: 접힌 머리줄에만 덧붙이는 맥락(출력의 턴 합계)
+// isOpenable: 펼칠 표가 있는지(응답 전이나 작업 중에 보낸 프롬프트는 없다)
+type Sheet = {
+  side: Side
+  title: string
+  icon: string
+  meta: string[]
+  summary: string[]
+  tokens: string
+  cost?: string
+  rows: Row[]
+  note?: string
+  isOpenable: boolean
 }
 
-// 출력 토큰과 그 비용, 괄호에는 입력과 출력을 더한 이 턴의 비용
-const outputLabel = (turn: Turn, ttl: Ttl) => {
-  const tokens = `output ${comma(turn.output)} tokens`
-  if (turn.unpriced || !turn.cost) return tokens
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
-  return `${tokens} / ${money(turn.cost.output)} (turn ${money(inputCostOf(turn.cost, ttl) + turn.cost.output)})`
-}
+// 턴 번호는 개수가 아니라 차례라서 page 3 처럼 이름 뒤에 숫자를 쓴다
+const turnMeta = (turn: Turn | undefined) => (turn?.number ? [`turn ${turn.number}`] : [])
 
 // 데스크톱 앱 카드 머리줄의 아이콘(Material Icons 의 arrow_upward, arrow_downward, Apache 2.0):
 // 서버로 보낸 입력은 위로, 받은 출력은 아래로. 어두운 테마와 밝은 테마 모두에서 보이는 회색
@@ -234,40 +231,232 @@ const SENT_ICON =
 const RECEIVED_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#8E8E93"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg>'
 
-// 카드 표의 한 줄: 이름, 토큰 수, 비용(없으면 빈칸)
-type Cell = { label: string; tokens?: string; cost?: string }
+// 입력: 응답 전에는 어림한 프롬프트 토큰만, 응답이 오면 보낸 전체 입력을 캐시 읽기, 캐시 쓰기,
+// 캐시를 거치지 않은 입력으로 나누고 각 비율과 비용을 붙인다. 세 줄을 더하면 total 과 같다
+// 이름은 API 와 Claude Code 의 용어에 맞춘다: total 은 input + cache read + cache write
+const inputSheetOf = (text: string, turn: Turn | undefined, ttl: Ttl): Sheet => {
+  const prompt = `~${comma(estimate(text))}`
+  const promptRow: Row = { label: 'prompt', tokens: prompt }
+  const base = { side: 'input' as const, title: 'INPUT', icon: SENT_ICON, summary: [] }
+  const sent = turn?.sent
+  if (!turn || !sent) {
+    // 턴이 없는 프롬프트는 아직 턴이 시작되기 전이거나, 작업 중에 보내 진행 중인 턴에 합쳐진 것이다
+    const meta = turn ? [...turnMeta(turn), 'waiting for response'] : []
 
-type Card = { icon: string; title: string; total?: string; cells: Cell[]; note?: string }
+    return { ...base, meta, tokens: prompt, rows: [promptRow], isOpenable: false }
+  }
 
-// 데스크톱 앱의 토큰 카드: prompt-translator 의 번역 카드처럼 입력 말풍선과 같은 반투명 회색 말풍선으로 오른쪽에 붙인다
-// 머리줄 왼쪽에 아이콘과 제목, 오른쪽 끝에 금액을 두고, 밑에는 이름, 토큰 수, 비용을 세 열로 맞춘 표를 둔다
-// 열마다 세로 상자로 쌓아 숫자가 줄마다 오른쪽 끝을 맞추고, 빈칸은 공백 한 칸으로 줄 높이를 지킨다
-// 접기: 머리줄 오른쪽 꺾쇠 단추로 카드마다 표와 안내를 숨기고 머리줄(제목과 금액)만 남긴다.
-// 아직 턴이 없는 입력 카드처럼 접을 곳이 없는 카드는 단추 없이 그린다
+  const read = turn.cacheRead ?? 0
+  const written = turn.cacheWrite ?? 0
+  const cost = turn.unpriced ? undefined : turn.cost
+  const total = cost && money(inputCostOf(cost, ttl))
+  const rows: Row[] = [
+    { label: 'total', tokens: comma(sent), cost: total, isTotal: true },
+    {
+      label: 'cache read',
+      tokens: comma(read),
+      share: percent(read, sent),
+      cost: cost && money(cost.cacheRead)
+    }
+  ]
+  if (written) {
+    rows.push({
+      label: 'cache write',
+      tokens: comma(written),
+      share: percent(written, sent),
+      cost: cost && money(writeCostOf(cost, ttl)),
+      note: `(${ttl})`
+    })
+  }
+  const uncached = sent - read - written
+  rows.push(
+    {
+      label: 'uncached',
+      tokens: comma(uncached),
+      share: percent(uncached, sent),
+      cost: cost && money(cost.input)
+    },
+    promptRow
+  )
+  if (turn.added) rows.push({ label: 'context', tokens: comma(turn.added) })
+  const meta = [...turnMeta(turn)]
+  if (turn.requests) meta.push(plural(turn.requests, 'request'))
+  if (turn.cachedAt) meta.push(`cached ${clock(turn.cachedAt)}`)
+
+  return {
+    ...base,
+    meta,
+    tokens: comma(sent),
+    cost: turn.unpriced ? '$?' : total,
+    rows,
+    ...(turn.unpriced && { note: `no price for ${turn.unpriced}` }),
+    isOpenable: true
+  }
+}
+
+// 출력: 그 턴의 모든 요청이 낸 출력 토큰(생각과 도구 호출 포함)과 비용, 입력과 출력을 더한 턴 합계
+const outputSheetOf = (turn: Turn, ttl: Ttl): Sheet => {
+  const cost = turn.unpriced ? undefined : turn.cost
+  const output = cost && money(cost.output)
+  const total = cost && money(inputCostOf(cost, ttl) + cost.output)
+  const rows: Row[] = [{ label: 'output', tokens: comma(turn.output), cost: output }]
+  if (total) rows.push({ label: 'turn total', cost: total, isTotal: true })
+
+  return {
+    side: 'output',
+    title: 'OUTPUT',
+    icon: RECEIVED_ICON,
+    meta: turnMeta(turn),
+    summary: total ? [`turn total ${total}`] : [],
+    tokens: comma(turn.output),
+    cost: turn.unpriced ? '$?' : output,
+    rows,
+    ...(turn.unpriced && { note: `no price for ${turn.unpriced}` }),
+    isOpenable: true
+  }
+}
+
+// 접기 단추의 상태와 동작. 표가 없는 줄에는 단추를 두지 않는다
 type Fold = { isFolded: boolean; onToggle: () => unknown } | undefined
+
+// 터미널의 열 폭: 단추, 이름, 토큰, 비율, 비용. 숫자 열은 오른쪽 정렬이라 쉼표, 소수점, %, $ 가 줄마다 같은 칸에 온다
+// 가장 긴 값(100.0%, <$0.0001)이 들어와도 열 폭 안에 들어간다
+const TOGGLE = 4
+const LABEL = 12
+const TOKENS = 8
+const SHARE = 8
+const COST = 10
+// 접힌 머리줄: 제목(INPUT, OUTPUT) 뒤에 토큰 수와 금액을 같은 칸에 맞춘다
+const TITLE = 6
+const SUMMARY_COST = 8
+
+// 터미널: 접으면 머리줄 한 줄(토큰 수, 금액, 맥락), 펼치면 머리줄 밑에 열 제목과 표
+// 이름과 열 제목, 메모는 옅게, 숫자는 기본색, 합계 줄의 숫자는 굵게 그린다
+const terminalSheetOf = ({ Box, Button, Text }: ElementTable, sheet: Sheet, fold: Fold) => {
+  const toggle = sheet.isOpenable ? fold : undefined
+  const isOpen = toggle !== undefined && !toggle.isFolded
+  const context = (parts: string[]) => (parts.length ? `(${parts.join(' / ')})` : '')
+  const head = isOpen
+    ? [`${sheet.title}  `, context(sheet.meta)]
+    : [
+        `${sheet.title.padEnd(TITLE)}${sheet.tokens.padStart(TOKENS)} tok ` +
+          `${(sheet.cost ?? '').padStart(SUMMARY_COST)}  `,
+        context([...sheet.meta, ...sheet.summary])
+      ]
+  const hasShare = sheet.rows.some(row => row.share)
+  const hasCost = sheet.rows.some(row => row.cost)
+  const numbers = (row: Pick<Row, 'tokens' | 'share' | 'cost'>) =>
+    `${(row.tokens ?? '').padStart(TOKENS)}${(row.share ?? '').padStart(SHARE)}` +
+    (hasCost ? (row.cost ?? '').padStart(COST) : '')
+  const line = (row: Row) => (
+    <Box flexDirection="row">
+      <Text dimColor>{' '.repeat(TOGGLE) + row.label.padEnd(LABEL)}</Text>
+      <Text weight={row.isTotal ? 'bold' : undefined}>{numbers(row)}</Text>
+      {row.note && <Text dimColor>{`   ${row.note}`}</Text>}
+    </Box>
+  )
+
+  return (
+    <Box flexDirection="column" paddingLeft={2}>
+      <Box flexDirection="row">
+        {toggle ? (
+          <Button key={`fold-${sheet.side}`} plain onPress={toggle.onToggle}>
+            <Text color="permissionShimmer">{isOpen ? '[-]' : '[+]'}</Text>
+          </Button>
+        ) : (
+          <Text>{'   '}</Text>
+        )}
+        <Text>{` ${head[0]}`}</Text>
+        <Text dimColor>{head[1]}</Text>
+      </Box>
+      {isOpen && (
+        <Box flexDirection="row">
+          <Text dimColor>
+            {(
+              ' '.repeat(TOGGLE + LABEL) +
+              numbers({ tokens: 'TOK', share: hasShare ? '%' : '', cost: 'COST' })
+            ).trimEnd()}
+          </Text>
+        </Box>
+      )}
+      {isOpen && sheet.rows.map(line)}
+      {isOpen && sheet.note && (
+        <Box flexDirection="row">
+          <Text dimColor>{' '.repeat(TOGGLE) + sheet.note}</Text>
+        </Box>
+      )}
+    </Box>
+  )
+}
 
 // 단추 안에는 글자만 넣을 수 있어 Svg 대신 글자를 쓴다: 펼친 카드는 빼기(접기), 접힌 카드는 더하기(펼치기)
 // 하이픈은 더하기보다 낮게 놓여서 더하기와 같은 높이, 같은 폭인 빼기 기호(U+2212)를 쓴다
 // 데스크톱 앱은 label 이 있으면 안의 글자 대신 그리므로 주지 않는다
-const FOLD_ICON = '\u2212'
+const FOLD_ICON = '−'
 const UNFOLD_ICON = '+'
 
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+// 데스크톱 앱의 카드: prompt-translator 의 번역 카드처럼 입력 말풍선과 같은 반투명 회색 말풍선으로 오른쪽에 붙인다
+// 머리줄 왼쪽에 아이콘과 제목, 오른쪽 끝에 금액과 접기 단추를 두고, 펼치면 그 밑에 맥락(턴 번호 등) 한 줄과
+// 이름, 토큰 수, 비율, 비용, 메모를 열로 맞춘 표를 둔다
+// 열마다 세로 상자로 쌓아 숫자가 줄마다 오른쪽 끝을 맞추고, 빈칸은 공백 한 칸으로 줄 높이를 지킨다
+// 카드 폭에는 최대값을 줄 수 없어서, 왼쪽에 줄지 않는 빈 칸을 두어 오른쪽 80% 안에서 접히게 한다
 const desktopCardOf = (
   { Box, Button, Svg, Text }: ElementTable<'desktop'>,
-  card: Card,
+  sheet: Sheet,
   fold: Fold
 ) => {
-  const isFolded = fold?.isFolded === true
-  const column = (values: string[], isNumber: boolean) => (
+  const toggle = sheet.isOpenable ? fold : undefined
+  const isOpen = toggle === undefined || !toggle.isFolded
+  const column = (values: string[], isNumber: boolean, isDim = !isNumber) => (
     <Box flexDirection="column" alignItems={isNumber ? 'flex-end' : 'flex-start'}>
-      {values.map(value => (
-        <Text size="caption" dimColor={!isNumber} tabular={isNumber}>
+      {values.map((value, index) => (
+        <Text
+          size="caption"
+          dimColor={isDim}
+          tabular={isNumber}
+          weight={isNumber && sheet.rows[index]?.isTotal ? 'semibold' : undefined}
+        >
           {value || ' '}
         </Text>
       ))}
     </Box>
   )
-  const hasCost = card.cells.some(cell => cell.cost)
+  const columns = [
+    column(
+      sheet.rows.map(row => capital(row.label)),
+      false
+    ),
+    column(
+      sheet.rows.map(row => row.tokens ?? ''),
+      true
+    )
+  ]
+  if (sheet.rows.some(row => row.share)) {
+    columns.push(
+      column(
+        sheet.rows.map(row => row.share ?? ''),
+        true
+      )
+    )
+  }
+  if (sheet.rows.some(row => row.cost)) {
+    columns.push(
+      column(
+        sheet.rows.map(row => row.cost ?? ''),
+        true
+      )
+    )
+  }
+  if (sheet.rows.some(row => row.note)) {
+    columns.push(
+      column(
+        sheet.rows.map(row => row.note ?? ''),
+        false
+      )
+    )
+  }
 
   // 위에 붙는 번역 카드나 답변과 맞닿지 않게 카드 위에 여백을 둔다
   return (
@@ -285,18 +474,18 @@ const desktopCardOf = (
       >
         <Box flexDirection="row" alignItems="center" justifyContent="space-between" gap="md">
           <Box flexDirection="row" alignItems="center" gap="xs">
-            <Svg source={card.icon} alt={card.title} width={14} height={14} />
+            <Svg source={sheet.icon} alt={capital(sheet.side)} width={14} height={14} />
             <Text size="caption" dimColor>
-              {card.title}
+              {capital(sheet.side)}
             </Text>
           </Box>
           <Box flexDirection="row" alignItems="center" gap="sm">
-            {card.total && (
+            {sheet.cost && (
               <Text size="caption" weight="semibold" tabular>
-                {card.total}
+                {sheet.cost}
               </Text>
             )}
-            {fold && (
+            {toggle && (
               // 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다. 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다.
               // 모서리는 테두리가 있을 때만 둥글게 그려져 투명한 테두리를 둔다. round 는 단추의 호버 배경(radius - 2px)보다
               // 4px 더 둥글어 호버 때 모양이 달라지므로, 기준 radius 그대로인 single 을 쓴다.
@@ -311,35 +500,28 @@ const desktopCardOf = (
                 borderColor="rgba(128, 128, 128, 0)"
                 backgroundColor="rgba(128, 128, 128, 0.12)"
               >
-                <Button key="fold" plain onPress={fold.onToggle}>
+                <Button key={`fold-${sheet.side}`} plain onPress={toggle.onToggle}>
                   <Text size="caption" mono color="permissionShimmer">
-                    {` ${isFolded ? UNFOLD_ICON : FOLD_ICON} `}
+                    {` ${toggle.isFolded ? UNFOLD_ICON : FOLD_ICON} `}
                   </Text>
                 </Button>
               </Box>
             )}
           </Box>
         </Box>
-        {!isFolded && card.cells.length > 0 && (
+        {isOpen && sheet.meta.length > 0 && (
+          <Text size="caption" dimColor>
+            {capital(sheet.meta.join(' / '))}
+          </Text>
+        )}
+        {isOpen && (
           <Box flexDirection="row" gap="md">
-            {column(
-              card.cells.map(cell => cell.label),
-              false
-            )}
-            {column(
-              card.cells.map(cell => cell.tokens ?? ''),
-              true
-            )}
-            {hasCost &&
-              column(
-                card.cells.map(cell => cell.cost ?? ''),
-                true
-              )}
+            {columns}
           </Box>
         )}
-        {!isFolded && card.note && (
+        {isOpen && sheet.note && (
           <Text size="caption" dimColor>
-            {card.note}
+            {capital(sheet.note)}
           </Text>
         )}
       </Box>
@@ -347,99 +529,13 @@ const desktopCardOf = (
   )
 }
 
-// 입력 카드: 응답 전에는 어림한 프롬프트 토큰만, 응답이 오면 보낸 양을 캐시 읽기와 쓰기로 나누고 각 비용을 붙인다
-const inputCardOf = (text: string, turn: Turn | undefined, ttl: Ttl): Card => {
-  const cells: Cell[] = [{ label: 'Prompt', tokens: `~${comma(estimate(text))}` }]
-  if (turn?.added) cells.push({ label: 'Context', tokens: comma(turn.added) })
-  const sent = turn?.sent
-  if (!turn || !sent) return { icon: SENT_ICON, title: 'Input', cells }
-
-  const read = turn.cacheRead ?? 0
-  const written = turn.cacheWrite ?? 0
-  const cost = turn.unpriced ? undefined : turn.cost
-  cells.push(
-    { label: 'Total input', tokens: comma(sent) },
-    { label: 'Uncached', tokens: comma(sent - read - written), cost: cost && money(cost.input) },
-    {
-      label: 'Cache read',
-      tokens: `${comma(read)} (${percent(read, sent)})`,
-      cost: cost && money(cost.cacheRead)
-    }
-  )
-  if (written) {
-    cells.push({
-      label: `Cache write ${ttl}`,
-      tokens: comma(written),
-      cost: cost && money(writeCostOf(cost, ttl))
-    })
-  }
-  const count = turn.requests ?? 0
-  if (count) cells.push({ label: count === 1 ? 'Request' : 'Requests', tokens: String(count) })
-  if (turn.cachedAt) cells.push({ label: 'Cached at', tokens: clock(turn.cachedAt) })
-
-  return {
-    icon: SENT_ICON,
-    title: 'Input',
-    total: cost && money(inputCostOf(cost, ttl)),
-    cells,
-    ...(turn.unpriced && { note: `No price for ${turn.unpriced}` })
-  }
-}
-
-// 출력 카드: 출력 토큰과 비용, 입력과 출력을 더한 이 턴의 비용
-const outputCardOf = (turn: Turn, ttl: Ttl): Card => {
-  const cost = turn.unpriced ? undefined : turn.cost
-  const cells: Cell[] = [
-    { label: 'Output', tokens: comma(turn.output), cost: cost && money(cost.output) }
-  ]
-  if (cost) cells.push({ label: 'Turn total', cost: money(inputCostOf(cost, ttl) + cost.output) })
-
-  return {
-    icon: RECEIVED_ICON,
-    title: 'Output',
-    total: cost && money(cost.output),
-    cells,
-    ...(turn.unpriced && { note: `No price for ${turn.unpriced}` })
-  }
-}
-
-// 입력 토큰: 데스크톱 앱은 카드, 그 밖(터미널 등)은 토큰 한 줄과 비용 한 줄
-const promptRows = (
-  ui: ElementTable,
-  surface: RenderSurface,
-  text: string,
-  turn: Turn | undefined,
-  ttl: Ttl,
-  fold: Fold
-) => {
-  if (surface === 'desktop') {
-    return desktopCardOf(ui as ElementTable<'desktop'>, inputCardOf(text, turn, ttl), fold)
-  }
-  const cost = inputCostLabel(turn, ttl)
-
-  return [promptLabel(text, turn), ...(cost ? [cost] : [])].map(line => lineOf(ui, line))
-}
-
-// 출력 토큰: 데스크톱 앱은 카드, 그 밖은 한 줄
-const outputRow = (
-  ui: ElementTable,
-  surface: RenderSurface,
-  turn: Turn,
-  ttl: Ttl,
-  fold: Fold
-) =>
+// 화면마다 그린다: 데스크톱 앱은 카드, 그 밖(터미널 등)은 고정 폭 열의 줄
+const sheetRow = (ui: ElementTable, surface: RenderSurface, sheet: Sheet, fold: Fold) =>
   surface === 'desktop'
-    ? desktopCardOf(ui as ElementTable<'desktop'>, outputCardOf(turn, ttl), fold)
-    : lineOf(ui, outputLabel(turn, ttl))
+    ? desktopCardOf(ui as ElementTable<'desktop'>, sheet, fold)
+    : terminalSheetOf(ui, sheet, fold)
 
 // 엔진이 그린 답변(engine 노드) 바로 위에 줄을 끼워, 다른 Mod 가 맨 위에 붙인 줄(번역)보다 아래에 온다
-// 터미널 등의 토큰 수 한 줄: 두 칸 들여 쓴다
-const lineOf = ({ Box, Text }: ElementTable, text: string) => (
-  <Box paddingLeft={2}>
-    <Text dimColor>{text}</Text>
-  </Box>
-)
-
 const aboveEngine = (tree: RenderElement, stack: (row: RenderElement) => RenderElement) => {
   let isPlaced = false
   const visit = (node: RenderNode): RenderNode => {
@@ -479,28 +575,32 @@ const askedAbove = (
   return undefined
 }
 
-// 데스크톱 카드 하나(턴 id 와 input 또는 output)의 접힌 상태와 그것을 바꾸는 단추 동작
-const FOLDED = KEEP * 2
+// 카드 하나(턴 id 와 input 또는 output)의 접힌 상태와 그것을 바꾸는 단추 동작
+// 데스크톱 카드는 펼친 채로 시작해 접은 카드를 folded 에, 터미널 줄은 접힌 채로 시작해 펼친 줄을 opened 에 적는다
+const MARKED = KEEP * 2
 const foldOf = (
   $: StateDollar,
   state: Meter,
   turn: Turn | undefined,
-  side: 'input' | 'output'
+  side: Side,
+  surface: RenderSurface
 ): Fold => {
   if (!turn) return undefined
   const key = `${turn.id}:${side}`
+  const field = surface === 'desktop' ? 'folded' : 'opened'
+  const isMarked = state[field]?.includes(key) === true
 
   return {
-    isFolded: state.folded?.includes(key) === true,
+    isFolded: field === 'folded' ? isMarked : !isMarked,
     onToggle: () =>
       change($, one => {
-        const folded = one.folded ?? []
+        const marked = one[field] ?? []
 
         return {
           ...one,
-          folded: folded.includes(key)
-            ? folded.filter(other => other !== key)
-            : [key, ...folded].slice(0, FOLDED)
+          [field]: marked.includes(key)
+            ? marked.filter(other => other !== key)
+            : [key, ...marked].slice(0, MARKED)
         }
       })
   }
@@ -539,7 +639,16 @@ export const register: Register = (on, options) => {
       ...(input?.typed !== undefined && { isCommand: true })
     }
     running = e.turnId
-    await change($, state => ({ ...state, turns: [turn, ...state.turns].slice(0, KEEP) }))
+    // 턴 번호: 세션에서 사람이 시작한 턴(프롬프트, 턴을 시작하는 명령)을 1부터 센다. /clear 뒤에도 이어 간다
+    await change($, state => {
+      const count = (state.count ?? 0) + 1
+
+      return {
+        ...state,
+        count,
+        turns: [{ ...turn, number: count }, ...state.turns].slice(0, KEEP)
+      }
+    })
 
     return result
   })
@@ -648,7 +757,12 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {row}
-        {promptRows(ui, e.surface, text, turn, ttlOf(state), foldOf($, state, turn, 'input'))}
+        {sheetRow(
+          ui,
+          e.surface,
+          inputSheetOf(text, turn, ttlOf(state)),
+          foldOf($, state, turn, 'input', e.surface)
+        )}
       </Box>
     )
   })
@@ -684,7 +798,12 @@ export const register: Register = (on, options) => {
     const tree = asked
       ? aboveEngine(row, reply => (
           <Box flexDirection="column">
-            {promptRows(ui, e.surface, asked.prompt, asked, ttl, foldOf($, state, asked, 'input'))}
+            {sheetRow(
+              ui,
+              e.surface,
+              inputSheetOf(asked.prompt, asked, ttl),
+              foldOf($, state, asked, 'input', e.surface)
+            )}
             {reply}
           </Box>
         ))
@@ -694,7 +813,12 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {tree}
-        {outputRow(ui, e.surface, ended, ttl, foldOf($, state, ended, 'output'))}
+        {sheetRow(
+          ui,
+          e.surface,
+          outputSheetOf(ended, ttl),
+          foldOf($, state, ended, 'output', e.surface)
+        )}
       </Box>
     )
   })

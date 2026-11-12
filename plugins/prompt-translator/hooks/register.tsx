@@ -279,7 +279,8 @@ const desktopLineOf = (
 const WORD =
   /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー][、。，．！？」』）]*|[^\s\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]+[ \t]*|[ \t]+/gu
 
-// 번역 한 줄: 첫 글자 앞의 [Hide] 를 누르면 숨기고 [Show] 를 누르면 다시 보인다
+// 번역 한 줄: 첫 글자 앞의 [-] 를 누르면 접고 [+] 를 누르면 다시 보인다(token-meter 의 접기 단추와 같다)
+// 접은 줄에는 무엇이 접혀 있는지 알 수 있게 번역 언어를 옅게 붙인다
 // 단추는 글 안에 넣을 수 없어서 낱말마다 감싸 흐르게 해, 길게 접혀도 다음 줄이 단추 밑에서 시작한다
 const lineOf = ({ Box, Button, Text }: ElementTable, entry: Entry, onToggle: () => unknown) => {
   if (entry.status !== 'done') {
@@ -294,10 +295,17 @@ const lineOf = ({ Box, Button, Text }: ElementTable, entry: Entry, onToggle: () 
 
   const toggle = (
     <Button key="toggle" plain onPress={onToggle}>
-      <Text color="permissionShimmer">{entry.isHidden ? '[Show]' : '[Hide]'}</Text>
+      <Text color="permissionShimmer">{entry.isHidden ? '[+]' : '[-]'}</Text>
     </Button>
   )
-  if (entry.isHidden) return <Box paddingLeft={2}>{toggle}</Box>
+  if (entry.isHidden) {
+    return (
+      <Box paddingLeft={2} flexDirection="row">
+        {toggle}
+        <Text dimColor>{` ${targetLabel}`}</Text>
+      </Box>
+    )
+  }
 
   const rows = (entry.translation ?? '').split('\n').map((line, index) => (
     <Box flexDirection="row" flexWrap="wrap">
