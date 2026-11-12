@@ -45,7 +45,7 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 ### [token-meter](./plugins/token-meter/README.ko.md)
 
 각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 API 정가로 매긴 비용과 함께 보여 줍니다.  
-데스크톱 앱에서는 모든 줄이 입력 말풍선처럼 오른쪽 끝에 붙습니다.
+데스크톱 앱에서는 입력 말풍선처럼 오른쪽 끝에 붙은 카드로 보입니다.
 
 ```plaintext
 > 이 버그를 고쳐 줄래

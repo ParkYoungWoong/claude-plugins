@@ -2,7 +2,8 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { On, TurnUsage } from 'claude-code'
 import type { Engine, MockClock } from 'claude-code/testing'
 
-const SURFACES = ['terminal', 'desktop'] as const
+// 글 한 줄로 그리는 화면: 데스크톱 앱은 같은 자리에 카드를 그려서 따로 시험한다
+const SURFACES = ['terminal'] as const
 const MINUTE = 60 * 1000
 // 이 컴퓨터 시간대의 13:55:02 라서 어느 시간대에서 돌려도 화면 시각이 같다
 const START = new Date(2026, 9, 27, 13, 55, 2).getTime()
@@ -274,6 +275,16 @@ const respond = ($: Engine, uuid: string, text: string) =>
 const complete = ($: Engine, turnId: string, answer: string) =>
   $.turn.complete({ turnId, answer, durationMs: 1000, isAborted: false, reason: 'answer' })
 
+// 데스크톱 앱의 출력 카드: 출력 420 토큰, 앞의 두 요청을 더한 턴 비용
+const OUTPUT_CARD = [
+  'engine',
+  'Output',
+  '$0.0084',
+  ...['Output', 'Turn total'],
+  ...['420', ' '],
+  ...['$0.0084', '$0.0165']
+]
+
 const textsOf = async ($: Engine, mount: Parameters<Engine['ui']['mount']>[0]) => {
   const ui = await $.ui.mount(mount)
   const texts = (await ui.findAll({ type: 'Text' })).map(one => one.text)
@@ -354,13 +365,13 @@ test('데스크톱 앱이 API 메시지 id 와 블록 번호로 물어도 블록
     requestId: 'msg_01A-t0',
     surface: 'desktop'
   } as const
-  expect((await textsOf($, first))[0]).toMatch(/^prompt ~9 /)
+  expect((await textsOf($, first)).slice(0, 4)).toEqual(['Input', '$0.0081', 'Prompt', 'Total input'])
   const last = {
     ...reply('모두 통과했습니다.\n'),
     requestId: 'msg_01B-t0',
     surface: 'desktop'
   } as const
-  expect(await textsOf($, last)).toEqual(['engine', 'output 420 tokens / $0.0084 (turn $0.0165)'])
+  expect(await textsOf($, last)).toEqual(OUTPUT_CARD)
   // 글이 다른 블록에는 붙이지 않는다
   const other = { ...reply('중간 설명'), requestId: 'msg_01B-t1', surface: 'desktop' } as const
   expect(await textsOf($, other)).toEqual(['engine'])
@@ -553,4 +564,58 @@ test('그려 둔 줄도 구독인 것을 알게 되면 1시간 값으로 다시 
     'input cost $0.0800 (uncached $0.0000, cache read $0.0000, cache write 1h $0.0800)'
   )
   await ui.unmount()
+})
+
+test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변 밑에 출력 카드를 그린다', async ($, on) => {
+  const server = engine(on, [
+    priced('claude-opus-5-5', 5, 20000, 300, 300),
+    priced('claude-opus-5-5', 10, 20400, 0, 120)
+  ])
+  await $.turn.start({ turnId: 't1', text: '첫 질문' })
+  const row = { ...prompt('첫 질문'), surface: 'desktop' } as const
+
+  // 응답 전에는 어림한 프롬프트 토큰만
+  expect(await textsOf($, row)).toEqual(['engine', 'Input', 'Prompt', '~4'])
+
+  for (let index = 0; index < 2; index += 1) await step($, server, 't1', index)
+  await complete($, 't1', '첫 답변')
+
+  // 머리줄의 제목과 입력 비용, 그 밑에 이름, 토큰 수, 비용의 세 열(빈칸은 공백 한 칸)
+  expect(await textsOf($, row)).toEqual([
+    'engine',
+    'Input',
+    '$0.0096',
+    ...['Prompt', 'Total input', 'Uncached', 'Cache read', 'Cache write 5m', 'Requests', 'Cached at'],
+    ...['~4', '40,715', '15', '40,400 (99.2%)', '300', '2', '13:55:02'],
+    ...[' ', ' ', '$0.0001', '$0.0081', '$0.0015', ' ', ' ']
+  ])
+  expect(await textsOf($, { ...reply('첫 답변'), surface: 'desktop' })).toEqual([
+    'engine',
+    'Output',
+    '$0.0084',
+    ...['Output', 'Turn total'],
+    ...['420', ' '],
+    ...['$0.0084', '$0.0180']
+  ])
+})
+
+test('데스크톱 앱의 카드는 정가를 모르는 모델이면 비용 열 없이 그 모델을 적는다', async ($, on) => {
+  const server = engine(on, [priced('claude-future-9', 1000, 0, 0, 100)])
+  await run($, server, 't1', '새 모델', '답했습니다.', 1)
+
+  const row = { ...prompt('새 모델'), surface: 'desktop' } as const
+  expect(await textsOf($, row)).toEqual([
+    'engine',
+    'Input',
+    ...['Prompt', 'Total input', 'Uncached', 'Cache read', 'Request', 'Cached at'],
+    ...['~4', '1,000', '1,000', '0 (0.0%)', '1', '13:55:02'],
+    'No price for claude-future-9'
+  ])
+  expect(await textsOf($, { ...reply('답했습니다.'), surface: 'desktop' })).toEqual([
+    'engine',
+    'Output',
+    'Output',
+    '100',
+    'No price for claude-future-9'
+  ])
 })

@@ -227,6 +227,143 @@ const outputLabel = (turn: Turn, ttl: Ttl) => {
   return `${tokens} / ${money(turn.cost.output)} (turn ${money(inputCostOf(turn.cost, ttl) + turn.cost.output)})`
 }
 
+// 데스크톱 앱 카드 머리줄의 아이콘(Material Icons 의 arrow_upward, arrow_downward, Apache 2.0):
+// 서버로 보낸 입력은 위로, 받은 출력은 아래로. 어두운 테마와 밝은 테마 모두에서 보이는 회색
+const SENT_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#8E8E93"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>'
+const RECEIVED_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#8E8E93"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg>'
+
+// 카드 표의 한 줄: 이름, 토큰 수, 비용(없으면 빈칸)
+type Cell = { label: string; tokens?: string; cost?: string }
+
+type Card = { icon: string; title: string; total?: string; cells: Cell[]; note?: string }
+
+// 데스크톱 앱의 토큰 카드: prompt-translator 의 번역 카드처럼 입력 말풍선과 같은 반투명 회색 말풍선으로 오른쪽에 붙인다
+// 머리줄 왼쪽에 아이콘과 제목, 오른쪽 끝에 금액을 두고, 밑에는 이름, 토큰 수, 비용을 세 열로 맞춘 표를 둔다
+// 열마다 세로 상자로 쌓아 숫자가 줄마다 오른쪽 끝을 맞추고, 빈칸은 공백 한 칸으로 줄 높이를 지킨다
+const desktopCardOf = ({ Box, Svg, Text }: ElementTable<'desktop'>, card: Card) => {
+  const column = (values: string[], isNumber: boolean) => (
+    <Box flexDirection="column" alignItems={isNumber ? 'flex-end' : 'flex-start'}>
+      {values.map(value => (
+        <Text size="caption" dimColor={!isNumber} tabular={isNumber}>
+          {value || ' '}
+        </Text>
+      ))}
+    </Box>
+  )
+  const hasCost = card.cells.some(cell => cell.cost)
+
+  return (
+    <Box flexDirection="row" justifyContent="flex-end">
+      <Box width="20%" flexShrink={0} />
+      <Box
+        flexDirection="column"
+        flexShrink={1}
+        gap="xs"
+        paddingX="sm"
+        paddingY="xs"
+        borderStyle="round"
+        borderColor="rgba(128, 128, 128, 0)"
+        backgroundColor="rgba(128, 128, 128, 0.1)"
+      >
+        <Box flexDirection="row" alignItems="center" justifyContent="space-between" gap="md">
+          <Box flexDirection="row" alignItems="center" gap="xs">
+            <Svg source={card.icon} alt={card.title} width={14} height={14} />
+            <Text size="caption" dimColor>
+              {card.title}
+            </Text>
+          </Box>
+          {card.total && (
+            <Text size="caption" weight="semibold" tabular>
+              {card.total}
+            </Text>
+          )}
+        </Box>
+        {card.cells.length > 0 && (
+          <Box flexDirection="row" gap="md">
+            {column(
+              card.cells.map(cell => cell.label),
+              false
+            )}
+            {column(
+              card.cells.map(cell => cell.tokens ?? ''),
+              true
+            )}
+            {hasCost &&
+              column(
+                card.cells.map(cell => cell.cost ?? ''),
+                true
+              )}
+          </Box>
+        )}
+        {card.note && (
+          <Text size="caption" dimColor>
+            {card.note}
+          </Text>
+        )}
+      </Box>
+    </Box>
+  )
+}
+
+// 입력 카드: 응답 전에는 어림한 프롬프트 토큰만, 응답이 오면 보낸 양을 캐시 읽기와 쓰기로 나누고 각 비용을 붙인다
+const inputCardOf = (text: string, turn: Turn | undefined, ttl: Ttl): Card => {
+  const cells: Cell[] = [{ label: 'Prompt', tokens: `~${comma(estimate(text))}` }]
+  if (turn?.added) cells.push({ label: 'Context', tokens: comma(turn.added) })
+  const sent = turn?.sent
+  if (!turn || !sent) return { icon: SENT_ICON, title: 'Input', cells }
+
+  const read = turn.cacheRead ?? 0
+  const written = turn.cacheWrite ?? 0
+  const cost = turn.unpriced ? undefined : turn.cost
+  cells.push(
+    { label: 'Total input', tokens: comma(sent) },
+    { label: 'Uncached', tokens: comma(sent - read - written), cost: cost && money(cost.input) },
+    {
+      label: 'Cache read',
+      tokens: `${comma(read)} (${percent(read, sent)})`,
+      cost: cost && money(cost.cacheRead)
+    }
+  )
+  if (written) {
+    cells.push({
+      label: `Cache write ${ttl}`,
+      tokens: comma(written),
+      cost: cost && money(writeCostOf(cost, ttl))
+    })
+  }
+  const count = turn.requests ?? 0
+  if (count) cells.push({ label: count === 1 ? 'Request' : 'Requests', tokens: String(count) })
+  if (turn.cachedAt) cells.push({ label: 'Cached at', tokens: clock(turn.cachedAt) })
+
+  return {
+    icon: SENT_ICON,
+    title: 'Input',
+    total: cost && money(inputCostOf(cost, ttl)),
+    cells,
+    ...(turn.unpriced && { note: `No price for ${turn.unpriced}` })
+  }
+}
+
+// 출력 카드: 출력 토큰과 비용, 입력과 출력을 더한 이 턴의 비용
+const outputCardOf = (turn: Turn, ttl: Ttl): Card => {
+  const cost = turn.unpriced ? undefined : turn.cost
+  const cells: Cell[] = [
+    { label: 'Output', tokens: comma(turn.output), cost: cost && money(cost.output) }
+  ]
+  if (cost) cells.push({ label: 'Turn total', cost: money(inputCostOf(cost, ttl) + cost.output) })
+
+  return {
+    icon: RECEIVED_ICON,
+    title: 'Output',
+    total: cost && money(cost.output),
+    cells,
+    ...(turn.unpriced && { note: `No price for ${turn.unpriced}` })
+  }
+}
+
+// 입력 토큰: 데스크톱 앱은 카드, 그 밖(터미널 등)은 토큰 한 줄과 비용 한 줄
 const promptRows = (
   ui: ElementTable,
   surface: RenderSurface,
@@ -234,23 +371,27 @@ const promptRows = (
   turn: Turn | undefined,
   ttl: Ttl
 ) => {
+  if (surface === 'desktop') {
+    return desktopCardOf(ui as ElementTable<'desktop'>, inputCardOf(text, turn, ttl))
+  }
   const cost = inputCostLabel(turn, ttl)
 
-  return [promptLabel(text, turn), ...(cost ? [cost] : [])].map(line => lineOf(ui, surface, line))
+  return [promptLabel(text, turn), ...(cost ? [cost] : [])].map(line => lineOf(ui, line))
 }
 
+// 출력 토큰: 데스크톱 앱은 카드, 그 밖은 한 줄
+const outputRow = (ui: ElementTable, surface: RenderSurface, turn: Turn, ttl: Ttl) =>
+  surface === 'desktop'
+    ? desktopCardOf(ui as ElementTable<'desktop'>, outputCardOf(turn, ttl))
+    : lineOf(ui, outputLabel(turn, ttl))
+
 // 엔진이 그린 답변(engine 노드) 바로 위에 줄을 끼워, 다른 Mod 가 맨 위에 붙인 줄(번역)보다 아래에 온다
-// 토큰 수 한 줄: 데스크톱 앱은 입력 말풍선처럼 오른쪽 끝에 붙이고, 그 밖(터미널 등)은 두 칸 들여 쓴다
-const lineOf = ({ Box, Text }: ElementTable, surface: RenderSurface, text: string) =>
-  surface === 'desktop' ? (
-    <Box flexDirection="row" justifyContent="flex-end">
-      <Text dimColor>{text}</Text>
-    </Box>
-  ) : (
-    <Box paddingLeft={2}>
-      <Text dimColor>{text}</Text>
-    </Box>
-  )
+// 터미널 등의 토큰 수 한 줄: 두 칸 들여 쓴다
+const lineOf = ({ Box, Text }: ElementTable, text: string) => (
+  <Box paddingLeft={2}>
+    <Text dimColor>{text}</Text>
+  </Box>
+)
 
 const aboveEngine = (tree: RenderElement, stack: (row: RenderElement) => RenderElement) => {
   let isPlaced = false
@@ -479,7 +620,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {tree}
-        {lineOf(ui, e.surface, outputLabel(ended, ttl))}
+        {outputRow(ui, e.surface, ended, ttl)}
       </Box>
     )
   })

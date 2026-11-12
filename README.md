@@ -45,7 +45,7 @@ In the desktop app, the translation shows as a bubble under your prompt.
 ### [token-meter](./plugins/token-meter)
 
 Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply, each with what it costs at the API list price.  
-In the desktop app, every line sits at the right edge, like your prompts.
+In the desktop app, they show as cards at the right edge, like your prompts.
 
 ```plaintext
 > 이 버그를 고쳐 줄래

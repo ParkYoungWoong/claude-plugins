@@ -108,8 +108,11 @@ Subagent requests are not counted, and notification rows are left alone.
 
 ## Claude desktop app
 
-The numbers show in the same places in Claude Code in the Claude desktop app.  
-Every line sits at the right edge, like your prompts.
+In Claude Code in the Claude desktop app, the numbers show in the same places as cards, like prompt-translator's translation card.  
+Each card sits at the right edge, like your prompts.
+
+- Input card: `Input` and the input cost on top, then a table of prompt, context, total input, uncached, cache read (with its share), cache write, requests and the time it was cached, with the cost of each part.
+- Output card: `Output` and the output cost on top, then the output tokens and the turn total.
 
 ## Turning it off
 
