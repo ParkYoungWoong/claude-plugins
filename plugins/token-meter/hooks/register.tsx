@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type {
   ElementTable,
+  EngineInterface,
   ModelUsage,
   Register,
   RenderElement,
@@ -9,7 +10,7 @@ import type {
   StateDollar
 } from 'claude-code'
 
-import type { Meter, Turn } from '../types'
+import type { Cost, Meter, Turn } from '../types'
 
 const KEEP = 200
 const HANGUL = /[ㄱ-ㆎ가-힣]/g
@@ -22,12 +23,110 @@ const COMMAND_NAME = /<command-name>\/?([^<]*)<\/command-name>/
 const COMMAND_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
 // 데스크톱 앱이 답변 블록을 묻는 id 의 끝(API 메시지 id 뒤의 블록 번호)
 const BLOCK_ID = /-t\d+$/
+// 턴마다 적어 두는 답변 줄의 수: 그 뒤의 답변은 마지막 답변만 적는다
+const REPLIES = 20
+
+// 모델별 정가: 100만 토큰당 달러의 1000배(4달러는 4000)로 입력, 출력, 캐시 읽기를 적는다
+// 2026-11-03 Anthropic API 정가. 캐시 쓰기는 입력 단가의 1.25배(5분 보존)나 2배(1시간 보존)다
+type Price = { input: number; output: number; cacheRead: number }
+const price = (input: number, output: number, cacheRead: number): Price => ({
+  input,
+  output,
+  cacheRead
+})
+const PRICES: Record<string, Price> = {
+  'claude-fable-5-2': price(8000, 40000, 200),
+  'claude-mythos-5-2': price(8000, 40000, 200),
+  'claude-fable-5-1': price(10000, 50000, 250),
+  'claude-mythos-5-1': price(10000, 50000, 250),
+  'claude-fable-5': price(10000, 50000, 1000),
+  'claude-mythos-5': price(10000, 50000, 1000),
+  'claude-opus-5-5': price(4000, 20000, 200),
+  'claude-opus-5': price(5000, 25000, 500),
+  'claude-opus-4-8': price(5000, 25000, 500),
+  'claude-opus-4-7': price(5000, 25000, 500),
+  'claude-opus-4-6': price(5000, 25000, 500),
+  'claude-sonnet-5-5': price(2000, 10000, 100),
+  'claude-sonnet-5': price(2000, 10000, 200),
+  'claude-sonnet-4-6': price(3000, 15000, 300),
+  'claude-haiku-5-5': price(100, 500, 10),
+  'claude-haiku-4-5': price(1000, 5000, 100)
+}
+// 프롬프트(그 요청의 전체 입력)가 over 토큰을 넘는 요청에는 다른 정가를 매기는 모델
+const LONG_PRICES: Record<string, { over: number; price: Price }> = {
+  'claude-haiku-5-5': { over: 100_000, price: price(500, 2500, 50) }
+}
+
+// API 가 알려 준 모델 id 를 정가표의 이름으로: Bedrock 접두사(us.anthropic.)와 버전 꼬리(-v1:0),
+// 날짜 꼬리(-20251001, @20251001), 컨텍스트 표시([1m])를 뗀다. 앞부분만 같은 이름(opus-5 와 opus-5-5)은 섞지 않는다
+const modelKey = (model: string) =>
+  model
+    .toLowerCase()
+    .replace(/\[[^\]]*\]$/, '')
+    .replace(/^(?:[a-z]+\.)?anthropic\./, '')
+    .replace(/-v\d+(?::\d+)?$/, '')
+    .replace(/[-@]\d{8}$/, '')
+
+const priceOf = (model: string, prompt: number) => {
+  const key = modelKey(model)
+  const long = LONG_PRICES[key]
+
+  return long && prompt > long.over ? long.price : PRICES[key]
+}
+
+// 토큰 수 x 단가 = 10억분의 1달러 단위의 정수
+const addCost = (cost: Cost | undefined, usage: ModelUsage, rate: Price): Cost => ({
+  input: (cost?.input ?? 0) + usage.input_tokens * rate.input,
+  cacheRead: (cost?.cacheRead ?? 0) + usage.cache_read_input_tokens * rate.cacheRead,
+  cacheWriteBase: (cost?.cacheWriteBase ?? 0) + usage.cache_creation_input_tokens * rate.input,
+  output: (cost?.output ?? 0) + usage.output_tokens * rate.output
+})
+
+type Ttl = '5m' | '1h'
+const TTLS = ['5m', '1h']
+const isTtl = (value: unknown): value is Ttl => TTLS.includes(String(value))
+
+// 캐시 보존 시간: 설정(userConfig.cacheTtl)이 auto 가 아니면 그 값을 쓰고, auto 면 Claude Code 처럼 정한다
+// 환경 변수와 promptCacheTtl 설정이 먼저고, 그다음 구독(사용량 한도 창이 있는 로그인)이면 1시간, 아니면 5분
+// 구독 여부는 meter 에 두어, 알게 되면 이미 그린 줄도 다시 그려진다
+let ttlSetting: Ttl | undefined
+// 아직 읽지 않았으면 undefined, 읽었는데 정한 곳이 없으면 null
+let ttlEngine: Ttl | null | undefined
+
+// 읽지 못하면(환경 변수나 설정을 막은 곳) 정하지 않은 것으로 보고 구독 여부로 정한다
+const readEngineTtl = async ($: EngineInterface): Promise<Ttl | null> => {
+  try {
+    if (await $.env.get('FORCE_PROMPT_CACHING_5M')) return '5m'
+    const env = await $.env.get('CLAUDE_CODE_PROMPT_CACHE_TTL')
+    if (isTtl(env)) return env
+    const setting = await $.settings.read({ key: 'promptCacheTtl' }).catch(() => undefined)
+    if (isTtl(setting)) return setting
+    if (await $.env.get('ENABLE_PROMPT_CACHING_1H')) return '1h'
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+const ttlOf = (state: Meter): Ttl => ttlSetting ?? ttlEngine ?? (state.isSubscription ? '1h' : '5m')
+
+const writeCostOf = (cost: Cost, ttl: Ttl) => cost.cacheWriteBase * (ttl === '1h' ? 2 : 1.25)
+
+const inputCostOf = (cost: Cost, ttl: Ttl) => cost.input + cost.cacheRead + writeCostOf(cost, ttl)
+
+// 10억분의 1달러 단위를 소수 넷째 자리 달러로: 0 이 아닌데 반올림하면 0 이 되는 값은 <$0.0001 로 쓴다
+const money = (units: number) => {
+  if (units > 0 && units < 50_000) return '<$0.0001'
+
+  return `$${(Math.round(units / 100_000) / 10_000).toFixed(4)}`
+}
 
 // 저장 형태가 바뀌면 태그를 올려 이전 버전이 남긴 값을 버린다
 const meter = atom(
   { plugin: 'token-meter', key: 'meter' } as const,
   { last: null, turns: [] },
-  { shape: 'meter-1' }
+  { shape: 'meter-2' }
 )
 
 type Input = { uuid: string; door: string; text: string }
@@ -36,6 +135,8 @@ type Input = { uuid: string; door: string; text: string }
 let inputs: Input[] = []
 // 지금 도는 메인 루프의 턴
 let running: string | undefined
+// 화면(surface)마다 명령 턴의 답변 가운데 그려진 것의 가장 앞 차례: 입력 토큰은 그 답변 위에 둔다
+const shown = new Map<string, number>()
 
 const change = ($: StateDollar, fn: (state: Meter) => Meter) => update($, meter, fn)
 
@@ -99,11 +200,43 @@ const promptLabel = (text: string, turn: Turn | undefined) => {
   if (turn?.sent && turn.cacheRead !== undefined) {
     notes.push(`cache read ${comma(turn.cacheRead)} / ${percent(turn.cacheRead, turn.sent)}`)
   }
+  if (turn?.cacheWrite) notes.push(`cache write ${comma(turn.cacheWrite)}`)
   const count = turn?.requests ?? 0
   if (count) notes.push(`${count} ${count === 1 ? 'request' : 'requests'}`)
   if (turn?.cachedAt) notes.push(`cached ${clock(turn.cachedAt)}`)
 
   return `${parts.join(' / ')} tokens${notes.length ? ` (${notes.join(', ')})` : ''}`
+}
+
+// 입력 비용: 캐시를 거치지 않은 입력, 캐시 읽기, 캐시 쓰기(보존 시간과 함께)로 나눈다
+const inputCostLabel = (turn: Turn | undefined, ttl: Ttl) => {
+  if (turn?.unpriced) return `input cost unknown (no price for ${turn.unpriced})`
+  const cost = turn?.cost
+  if (!cost) return undefined
+  const parts = [`uncached ${money(cost.input)}`, `cache read ${money(cost.cacheRead)}`]
+  if (cost.cacheWriteBase) parts.push(`cache write ${ttl} ${money(writeCostOf(cost, ttl))}`)
+
+  return `input cost ${money(inputCostOf(cost, ttl))} (${parts.join(', ')})`
+}
+
+// 출력 토큰과 그 비용, 괄호에는 입력과 출력을 더한 이 턴의 비용
+const outputLabel = (turn: Turn, ttl: Ttl) => {
+  const tokens = `output ${comma(turn.output)} tokens`
+  if (turn.unpriced || !turn.cost) return tokens
+
+  return `${tokens} / ${money(turn.cost.output)} (turn ${money(inputCostOf(turn.cost, ttl) + turn.cost.output)})`
+}
+
+const promptRows = (
+  ui: ElementTable,
+  surface: RenderSurface,
+  text: string,
+  turn: Turn | undefined,
+  ttl: Ttl
+) => {
+  const cost = inputCostLabel(turn, ttl)
+
+  return [promptLabel(text, turn), ...(cost ? [cost] : [])].map(line => lineOf(ui, surface, line))
 }
 
 // 엔진이 그린 답변(engine 노드) 바로 위에 줄을 끼워, 다른 Mod 가 맨 위에 붙인 줄(번역)보다 아래에 온다
@@ -135,10 +268,49 @@ const aboveEngine = (tree: RenderElement, stack: (row: RenderElement) => RenderE
   return isPlaced ? placed : stack(tree)
 }
 
-export const register: Register = on => {
+// 이 답변이 명령 턴의 몇 번째 답변인지 찾고, 그 화면에서 그려진 가장 앞의 답변이면 그 턴을 돌려준다
+const askedAbove = (
+  turns: Turn[],
+  surface: RenderSurface,
+  isReply: (id?: string, replyText?: string) => boolean
+) => {
+  for (const turn of turns) {
+    if (!turn.isCommand) continue
+    const replies = turn.replies ?? []
+    let order = replies.findIndex(one => isReply(one.id, one.text))
+    if (order < 0 && isReply(turn.lastReplyId, turn.lastReplyText)) order = replies.length
+    if (order < 0) continue
+
+    const key = `${surface}:${turn.id}`
+    const first = Math.min(shown.get(key) ?? order, order)
+    shown.set(key, first)
+
+    return order === first ? turn : undefined
+  }
+
+  return undefined
+}
+
+export const register: Register = (on, options) => {
+  ttlSetting = isTtl(options.cacheTtl) ? options.cacheTtl : undefined
+  ttlEngine = undefined
+
+  // 구독 로그인은 응답마다 사용량 한도 창(5시간, 7일)을 알려 온다
+  on('session.measure', async ($, e, next) => {
+    const isSubscription = e.rateLimits.some(
+      limit => limit.kind === 'five_hour' || limit.kind === 'seven_day'
+    )
+    if (isSubscription && !(await read($, meter)).isSubscription) {
+      await change($, state => ({ ...state, isSubscription: true }))
+    }
+
+    return next(e)
+  })
+
   on('turn.start', async ($, e, next) => {
     const rows = e.agentId === undefined ? inputs : []
     if (e.agentId === undefined) inputs = []
+    if (ttlEngine === undefined) ttlEngine = await readEngineTtl($)
     const result = await next(e)
     if (e.agentId !== undefined) return result
 
@@ -169,8 +341,10 @@ export const register: Register = on => {
           ...state,
           turns: patchTurn(state, turnId, turn => ({
             ...turn,
-            firstReplyId: turn.firstReplyId ?? e.uuid,
-            firstReplyText: turn.firstReplyText ?? text,
+            replies:
+              (turn.replies?.length ?? 0) < REPLIES
+                ? [...(turn.replies ?? []), { id: e.uuid, text }]
+                : turn.replies,
             lastReplyId: e.uuid,
             lastReplyText: text
           }))
@@ -197,6 +371,8 @@ export const register: Register = on => {
 
     const cachedAt = respondedAt ?? (await $.clock.now())
     const input = inputOf(usage)
+    // 요청마다 그 요청의 모델과 프롬프트 길이로 정가를 고른다(턴 중간에 모델이 바뀌어도 맞는다)
+    const rate = priceOf(usage.model, input)
     await change($, state => {
       // 턴의 첫 요청 입력에서 직전 요청의 입력과 출력을 빼면 이번 입력이 더한 양이 남는다
       const added = e.index === 0 && state.last ? input - state.last.input - state.last.output : 0
@@ -205,13 +381,16 @@ export const register: Register = on => {
         ...turn,
         sent: (turn.sent ?? 0) + input,
         cacheRead: (turn.cacheRead ?? 0) + usage.cache_read_input_tokens,
+        cacheWrite: (turn.cacheWrite ?? 0) + usage.cache_creation_input_tokens,
+        cost: rate ? addCost(turn.cost, usage, rate) : turn.cost,
+        ...(!rate && !turn.unpriced && { unpriced: usage.model }),
         requests: (turn.requests ?? 0) + 1,
         cachedAt: turn.cachedAt ?? cachedAt,
         output: turn.output + usage.output_tokens,
         ...(added > 0 && { added })
       }))
 
-      return { last: { input, output: usage.output_tokens }, turns }
+      return { ...state, last: { input, output: usage.output_tokens }, turns }
     })
 
     return result
@@ -240,7 +419,8 @@ export const register: Register = on => {
     if (!PEOPLE.includes(e.props.origin.kind) || COMMAND_ROW.test(text)) return next(e)
 
     // 줄 id 로 찾고, id 를 모르는 턴(작업 중에 보내 나중에 시작된 입력 등)만 글로 찾는다
-    const { turns } = await read($, meter)
+    const state = await read($, meter)
+    const { turns } = state
     const turn =
       turns.find(one => one.rowId === e.requestId) ??
       turns.find(one => one.rowId === undefined && one.prompt === text)
@@ -253,7 +433,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {row}
-        {lineOf(ui, e.surface, promptLabel(text, turn))}
+        {promptRows(ui, e.surface, text, turn, ttlOf(state))}
       </Box>
     )
   })
@@ -263,14 +443,17 @@ export const register: Register = on => {
     const text = e.props.text.trim()
     if (!text) return next(e)
 
-    const { turns } = await read($, meter)
+    const state = await read($, meter)
+    const { turns } = state
+    const ttl = ttlOf(state)
     // 데스크톱 앱은 답변을 기록 줄 id 가 아니라 API 메시지 id 와 블록 번호(msg_...-t0)로, 그 블록의 글과 함께
     // 묻는다. 이 id 는 플러그인이 알 수 없어서, 그때는 줄의 글이 블록의 글과 같은지로 짝을 맞춘다
     const isBlock = BLOCK_ID.test(e.requestId)
     const isReply = (id?: string, replyText?: string) =>
       id === e.requestId || (isBlock && replyText?.trim() === text)
-    // 명령 줄(/goal ...)은 Mod 가 그릴 수 있는 자리가 아니어서 그 턴의 첫 답변 위에 둔다
-    const asked = turns.find(one => one.isCommand && isReply(one.firstReplyId, one.firstReplyText))
+    // 명령 줄(/goal ...)과 그 출력 줄은 Mod 가 그릴 수 있는 자리가 아니어서 그 턴의 답변 위에 둔다.
+    // focus 보기는 도구 호출 사이의 답변을 그리지 않으므로, 첫 답변이 아니라 그려진 답변 가운데 가장 앞의 것에 둔다
+    const asked = askedAbove(turns, e.surface, isReply)
     // 그 턴의 모든 요청이 낸 출력 토큰(생각과 도구 호출 포함)
     const isDone = (turn: Turn) => turn.answer !== undefined && !e.props.isSummary
     const ended =
@@ -286,7 +469,7 @@ export const register: Register = on => {
     const tree = asked
       ? aboveEngine(row, reply => (
           <Box flexDirection="column">
-            {lineOf(ui, e.surface, promptLabel(asked.prompt, asked))}
+            {promptRows(ui, e.surface, asked.prompt, asked, ttl)}
             {reply}
           </Box>
         ))
@@ -296,7 +479,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {tree}
-        {lineOf(ui, e.surface, `output ${comma(ended.output)} tokens`)}
+        {lineOf(ui, e.surface, outputLabel(ended, ttl))}
       </Box>
     )
   })

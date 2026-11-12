@@ -51,6 +51,7 @@ const engine = (on: On, steps: TurnUsage[], lag = 0): Server => {
     }
   })
   on('turn.complete', (_, e) => ({ text: e.answer, usage: e.usage }))
+  on('session.measure', (_, e) => ({ changed: e.changed }))
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
 
@@ -141,10 +142,12 @@ test('입력한 글, 첫 요청이 늘린 양, 보낸 전체 입력의 합과 �
       'prompt ~7 / context 178 / total input 42,362 tokens (cache read 42,350 / 99.9%, 2 requests, cached 13:56:08)'
     )
 
-    expect((await lineUnder($, { ...reply('첫 답변'), surface })).line).toBe('output 420 tokens')
+    expect((await lineUnder($, { ...reply('첫 답변'), surface })).line).toBe(
+      'output 420 tokens / $0.0084 (turn $0.0165)'
+    )
     const last = await lineUnder($, { ...reply('두 번째 답변입니다.'), surface })
     expect(last.hasRow).toBe(true)
-    expect(last.line).toBe('output 2,400 tokens')
+    expect(last.line).toBe('output 2,400 tokens / $0.0480 (turn $0.0565)')
 
     expect((await lineUnder($, { ...reply('중간에 쓴 다른 글'), surface })).line).toBeUndefined()
   }
@@ -166,7 +169,7 @@ test('서브에이전트의 요청은 세지 않는다', async ($, on) => {
   })
 
   const seen = await lineUnder($, { ...reply('조사했습니다.'), surface: 'terminal' })
-  expect(seen.line).toBe('output 500 tokens')
+  expect(seen.line).toBe('output 500 tokens / $0.0100 (turn $0.0181)')
   const sent = await lineUnder($, { ...prompt('조사해 줘'), surface: 'terminal' })
   expect(sent.line).toBe(
     'prompt ~6 / total input 40,319 tokens (cache read 40,310 / 99.9%, 2 requests, cached 13:55:02)'
@@ -196,7 +199,7 @@ test('캐시에서 읽은 양과 그 비율을 보이고, 캐시에 새로 쓴 �
   // 읽은 10,000 / 보낸 20,200 = 49.50...%
   const seen = await lineUnder($, { ...prompt('읽어 줘'), surface: 'terminal' })
   expect(seen.line).toBe(
-    'prompt ~4 / total input 20,200 tokens (cache read 10,000 / 49.5%, 2 requests, cached 13:55:02)'
+    'prompt ~4 / total input 20,200 tokens (cache read 10,000 / 49.5%, cache write 8,150, 2 requests, cached 13:55:02)'
   )
 })
 
@@ -298,14 +301,39 @@ test('명령이 시작한 턴은 첫 답변 위에 입력 토큰을, 마지막 �
     const first = { ...reply('목표를 확인했습니다.'), requestId: 'reply-1', surface }
     expect(await textsOf($, first)).toEqual([
       'prompt ~9 / total input 40,415 tokens (cache read 40,400 / 99.9%, 2 requests, cached 13:55:02)',
+      'input cost $0.0081 (uncached $0.0001, cache read $0.0081)',
       'engine'
     ])
     const last = { ...reply('모두 통과했습니다.'), requestId: 'reply-2', surface }
-    expect(await textsOf($, last)).toEqual(['engine', 'output 420 tokens'])
+    expect(await textsOf($, last)).toEqual(['engine', 'output 420 tokens / $0.0084 (turn $0.0165)'])
 
     // 명령 줄에는 아무것도 붙이지 않는다
     const row = { ...prompt('<command-name>/goal</command-name>'), requestId: 'row-2', surface }
     expect(await textsOf($, row)).toEqual(['engine'])
+  }
+})
+
+test('focus 보기가 명령 턴의 첫 답변을 그리지 않으면 그려진 마지막 답변 위에 입력 토큰을 둔다', async ($, on) => {
+  const server = engine(on, [usage(5, 20000, 300), usage(10, 20400, 120)])
+  const settle = prompts(on, $)
+
+  await command($, 'goal', '테스트 통과')
+  await settle()
+  await step($, server, 'turn-1', 0)
+  await respond($, 'focus-1', '목표를 확인했습니다.')
+  await step($, server, 'turn-1', 1)
+  await respond($, 'focus-2', '모두 통과했습니다.')
+  await complete($, 'turn-1', '모두 통과했습니다.')
+
+  for (const surface of SURFACES) {
+    // 도구 호출 앞의 첫 답변은 그려지지 않고 마지막 답변만 그려진다
+    const last = { ...reply('모두 통과했습니다.'), requestId: 'focus-2', surface }
+    expect(await textsOf($, last)).toEqual([
+      'prompt ~9 / total input 40,415 tokens (cache read 40,400 / 99.9%, 2 requests, cached 13:55:02)',
+      'input cost $0.0081 (uncached $0.0001, cache read $0.0081)',
+      'engine',
+      'output 420 tokens / $0.0084 (turn $0.0165)'
+    ])
   }
 })
 
@@ -332,7 +360,7 @@ test('데스크톱 앱이 API 메시지 id 와 블록 번호로 물어도 블록
     requestId: 'msg_01B-t0',
     surface: 'desktop'
   } as const
-  expect(await textsOf($, last)).toEqual(['engine', 'output 420 tokens'])
+  expect(await textsOf($, last)).toEqual(['engine', 'output 420 tokens / $0.0084 (turn $0.0165)'])
   // 글이 다른 블록에는 붙이지 않는다
   const other = { ...reply('중간 설명'), requestId: 'msg_01B-t1', surface: 'desktop' } as const
   expect(await textsOf($, other)).toEqual(['engine'])
@@ -363,13 +391,15 @@ test('같은 글을 두 번 보내도 줄 id 로 각자의 숫자를 보이고, 
     const first = { ...prompt(typed), requestId: 'row-1', surface }
     expect(await textsOf($, first)).toEqual([
       'engine',
-      'prompt ~6 / total input 20,005 tokens (cache read 20,000 / 99.9%, 1 request, cached 13:55:02)'
+      'prompt ~6 / total input 20,005 tokens (cache read 20,000 / 99.9%, 1 request, cached 13:55:02)',
+      'input cost $0.0040 (uncached <$0.0001, cache read $0.0040)'
     ])
     // 늘린 양은 20404 - (20005 + 300) = 99
     const second = { ...prompt(typed), requestId: 'row-2', surface }
     expect(await textsOf($, second)).toEqual([
       'engine',
-      'prompt ~6 / context 99 / total input 20,404 tokens (cache read 20,400 / 99.9%, 1 request, cached 13:55:02)'
+      'prompt ~6 / context 99 / total input 20,404 tokens (cache read 20,400 / 99.9%, 1 request, cached 13:55:02)',
+      'input cost $0.0041 (uncached <$0.0001, cache read $0.0041)'
     ])
 
     // 답변도 글이 같아 줄 id 로 가른다
@@ -379,8 +409,148 @@ test('같은 글을 두 번 보내도 줄 id 로 각자의 숫자를 보이고, 
       )
     )
     expect(replies).toEqual([
-      ['engine', 'output 300 tokens'],
-      ['engine', 'output 50 tokens']
+      ['engine', 'output 300 tokens / $0.0060 (turn $0.0100)'],
+      ['engine', 'output 50 tokens / $0.0010 (turn $0.0051)']
     ])
   }
+})
+
+const priced = (model: string, input: number, cached: number, written: number, output: number) => ({
+  ...usage(input, cached, output),
+  model,
+  cache_creation_input_tokens: written
+})
+
+const lineOf = async ($: Engine, mount: Parameters<Engine['ui']['mount']>[0], pattern: RegExp) =>
+  (await textsOf($, mount)).find(text => pattern.test(text))
+
+const subscribed = ($: Engine) =>
+  $.session.measure({
+    context: { window: 1_000_000 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 3 }],
+    changed: ['rateLimits']
+  })
+
+test('입력 비용을 캐시 읽기와 쓰기로 나누고, 캐시 쓰기는 구독이면 1시간, 아니면 5분 값으로 매긴다', async ($, on) => {
+  const server = engine(on, [
+    priced('claude-opus-5-5', 2000, 0, 8000, 100),
+    priced('claude-opus-5-5', 50, 10000, 150, 80)
+  ])
+  await run($, server, 't1', '읽어 줘', '읽었습니다.', 2)
+  const row = { ...prompt('읽어 줘'), surface: 'terminal' } as const
+  const answer = { ...reply('읽었습니다.'), surface: 'terminal' } as const
+
+  // 입력 2,050 x $4, 읽기 10,000 x $0.20, 쓰기 8,150 x $4 x 1.25 (100만 토큰당)
+  expect(await lineOf($, row, /^input cost/)).toBe(
+    'input cost $0.0510 (uncached $0.0082, cache read $0.0020, cache write 5m $0.0408)'
+  )
+  expect(await lineOf($, answer, /^output/)).toBe('output 180 tokens / $0.0036 (turn $0.0546)')
+
+  // 구독 로그인은 사용량 한도 창을 알려 오고, Claude Code 는 1시간 동안 캐시에 둔다(입력 단가의 2배)
+  await subscribed($)
+  expect(await lineOf($, row, /^input cost/)).toBe(
+    'input cost $0.0754 (uncached $0.0082, cache read $0.0020, cache write 1h $0.0652)'
+  )
+})
+
+test(
+  '설정에서 고른 캐시 보존 시간을 쓴다',
+  { options: { cacheTtl: '1h' } },
+  async ($, on) => {
+    const server = engine(on, [priced('claude-opus-5-5', 0, 0, 10000, 0)])
+    await run($, server, 't1', '써 줘', '썼습니다.', 1)
+
+    const row = { ...prompt('써 줘'), surface: 'terminal' } as const
+    expect(await lineOf($, row, /^input cost/)).toBe(
+      'input cost $0.0800 (uncached $0.0000, cache read $0.0000, cache write 1h $0.0800)'
+    )
+  }
+)
+
+test('FORCE_PROMPT_CACHING_5M 이 있으면 구독이어도 5분 값으로 매긴다', async ($, on) => {
+  mock.env(on, { FORCE_PROMPT_CACHING_5M: '1' })
+  const server = engine(on, [priced('claude-opus-5-5', 0, 0, 10000, 0)])
+  await run($, server, 't1', '써 줘', '썼습니다.', 1)
+  await subscribed($)
+
+  const row = { ...prompt('써 줘'), surface: 'terminal' } as const
+  expect(await lineOf($, row, /^input cost/)).toBe(
+    'input cost $0.0500 (uncached $0.0000, cache read $0.0000, cache write 5m $0.0500)'
+  )
+})
+
+test('Haiku 5.5 는 프롬프트가 10만 토큰을 넘는 요청에만 긴 프롬프트 정가를 매긴다', async ($, on) => {
+  const server = engine(on, [
+    priced('claude-haiku-5-5', 100_000, 0, 0, 1000),
+    priced('claude-haiku-5-5', 100_001, 0, 0, 1000)
+  ])
+  await run($, server, 't1', '짧게', '짧은 답', 1)
+  await run($, server, 't2', '길게', '긴 답', 1)
+
+  const short = { ...prompt('짧게'), surface: 'terminal' } as const
+  expect(await lineOf($, short, /^input cost/)).toBe(
+    'input cost $0.0100 (uncached $0.0100, cache read $0.0000)'
+  )
+  const long = { ...prompt('길게'), surface: 'terminal' } as const
+  expect(await lineOf($, long, /^input cost/)).toBe(
+    'input cost $0.0500 (uncached $0.0500, cache read $0.0000)'
+  )
+  const answer = { ...reply('긴 답'), surface: 'terminal' } as const
+  expect(await lineOf($, answer, /^output/)).toBe('output 1,000 tokens / $0.0025 (turn $0.0525)')
+})
+
+test('턴 중간에 모델이 바뀌면 요청마다 그 모델의 정가로 매기고, 공급자 접두사와 날짜 꼬리는 뗀다', async ($, on) => {
+  const server = engine(on, [
+    priced('claude-opus-5-5', 1000, 0, 0, 100),
+    priced('us.anthropic.claude-sonnet-5-5-20261001-v1:0', 1000, 0, 0, 100)
+  ])
+  await run($, server, 't1', '바꿔 줘', '바꿨습니다.', 2)
+
+  // 입력 1,000 x ($4 + $2), 출력 100 x ($20 + $10)
+  const row = { ...prompt('바꿔 줘'), surface: 'terminal' } as const
+  expect(await lineOf($, row, /^input cost/)).toBe(
+    'input cost $0.0060 (uncached $0.0060, cache read $0.0000)'
+  )
+  const answer = { ...reply('바꿨습니다.'), surface: 'terminal' } as const
+  expect(await lineOf($, answer, /^output/)).toBe('output 200 tokens / $0.0030 (turn $0.0090)')
+})
+
+test('정가를 모르는 모델의 요청이 있으면 비용을 어림하지 않는다', async ($, on) => {
+  const server = engine(on, [
+    priced('claude-opus-5-5', 1000, 0, 0, 100),
+    priced('claude-future-9', 1000, 0, 0, 100)
+  ])
+  await run($, server, 't1', '새 모델', '답했습니다.', 2)
+
+  const row = { ...prompt('새 모델'), surface: 'terminal' } as const
+  expect(await lineOf($, row, /^input cost/)).toBe(
+    'input cost unknown (no price for claude-future-9)'
+  )
+  const answer = { ...reply('답했습니다.'), surface: 'terminal' } as const
+  expect(await lineOf($, answer, /^output/)).toBe('output 200 tokens')
+})
+
+test('Opus 5 를 Opus 5.5 정가로 섞지 않는다', async ($, on) => {
+  const server = engine(on, [priced('claude-opus-5', 1000, 0, 0, 0)])
+  await run($, server, 't1', '옛 모델', '답', 1)
+
+  const row = { ...prompt('옛 모델'), surface: 'terminal' } as const
+  expect(await lineOf($, row, /^input cost/)).toBe(
+    'input cost $0.0050 (uncached $0.0050, cache read $0.0000)'
+  )
+})
+
+test('그려 둔 줄도 구독인 것을 알게 되면 1시간 값으로 다시 그린다', async ($, on) => {
+  const server = engine(on, [priced('claude-opus-5-5', 0, 0, 10000, 0)])
+  await run($, server, 't1', '써 줘', '썼습니다.', 1)
+
+  const ui = await $.ui.mount({ ...prompt('써 줘'), surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^input cost/ }))?.text).toBe(
+    'input cost $0.0500 (uncached $0.0000, cache read $0.0000, cache write 5m $0.0500)'
+  )
+  await subscribed($)
+  expect((await ui.find({ type: 'Text', text: /^input cost/ }))?.text).toBe(
+    'input cost $0.0800 (uncached $0.0000, cache read $0.0000, cache write 1h $0.0800)'
+  )
+  await ui.unmount()
 })

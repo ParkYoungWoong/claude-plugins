@@ -1,7 +1,7 @@
 {
   "name": "token-meter",
-  "version": "0.8.0",
-  "description": "Shows the tokens each turn used right under its prompt and its last reply",
+  "version": "0.9.0",
+  "description": "Shows the tokens each turn used, and what they cost at list price, right under its prompt and its last reply",
   "author": {
     "name": "ParkYoungWoong",
     "url": "https://heropy.dev"
@@ -9,6 +9,15 @@
   "homepage": "https://github.com/ParkYoungWoong/claude-plugins/tree/main/plugins/token-meter",
   "repository": "https://github.com/ParkYoungWoong/claude-plugins",
   "license": "MIT",
-  "keywords": ["tokens", "usage", "prompt-cache", "mod"],
-  "types": "./types/index.d.ts"
+  "keywords": ["tokens", "usage", "cost", "prompt-cache", "mod"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "cacheTtl": {
+      "type": "string",
+      "title": "Cache write duration",
+      "description": "How long Claude Code keeps prompts in the cache, which sets the cache write price (5m: 1.25x input, 1h: 2x input). auto follows Claude Code: 1h on a Claude subscription, 5m otherwise, unless an environment variable or the promptCacheTtl setting says otherwise.",
+      "default": "auto",
+      "options": ["auto", "5m", "1h"]
+    }
+  }
 }

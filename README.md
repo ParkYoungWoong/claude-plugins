@@ -44,15 +44,16 @@ In the desktop app, the translation shows as a bubble under your prompt.
 
 ### [token-meter](./plugins/token-meter)
 
-Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply.  
-In the desktop app, both lines sit at the right edge, like your prompts.
+Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply, each with what it costs at the API list price.  
+In the desktop app, every line sits at the right edge, like your prompts.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, 2 requests, cached 13:56:08)
+  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, cache write 247, 2 requests, cached 13:56:08)
+  input cost $0.0105 (uncached $0.0001, cache read $0.0084, cache write 1h $0.0020)
 
   고쳤습니다.
-  output 2,400 tokens
+  output 2,400 tokens / $0.0480 (turn $0.0585)
 ```
 
 ## Requirements

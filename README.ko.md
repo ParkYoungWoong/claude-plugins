@@ -44,15 +44,16 @@ claude plugin install token-meter --marketplace ParkYoungWoong/claude-plugins
 
 ### [token-meter](./plugins/token-meter/README.ko.md)
 
-각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 보여 줍니다.  
-데스크톱 앱에서는 두 줄 모두 입력 말풍선처럼 오른쪽 끝에 붙습니다.
+각 프롬프트 밑에 그 턴의 입력 토큰을, 턴의 마지막 답변 밑에 출력 토큰을 API 정가로 매긴 비용과 함께 보여 줍니다.  
+데스크톱 앱에서는 모든 줄이 입력 말풍선처럼 오른쪽 끝에 붙습니다.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
-  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, 2 requests, cached 13:56:08)
+  prompt ~12 / context 15 / total input 42,362 tokens (cache read 42,100 / 99.3%, cache write 247, 2 requests, cached 13:56:08)
+  input cost $0.0105 (uncached $0.0001, cache read $0.0084, cache write 1h $0.0020)
 
   고쳤습니다.
-  output 2,400 tokens
+  output 2,400 tokens / $0.0480 (turn $0.0585)
 ```
 
 ## 요구 사항
