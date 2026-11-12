@@ -254,8 +254,9 @@ const desktopCardOf = ({ Box, Svg, Text }: ElementTable<'desktop'>, card: Card) 
   )
   const hasCost = card.cells.some(cell => cell.cost)
 
+  // 위에 붙는 번역 카드나 답변과 맞닿지 않게 카드 위에 여백을 둔다
   return (
-    <Box flexDirection="row" justifyContent="flex-end">
+    <Box flexDirection="row" justifyContent="flex-end" marginTop="sm">
       <Box width="20%" flexShrink={0} />
       <Box
         flexDirection="column"
