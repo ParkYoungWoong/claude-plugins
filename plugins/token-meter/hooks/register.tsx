@@ -242,7 +242,15 @@ type Card = { icon: string; title: string; total?: string; cells: Cell[]; note?:
 // 데스크톱 앱의 토큰 카드: prompt-translator 의 번역 카드처럼 입력 말풍선과 같은 반투명 회색 말풍선으로 오른쪽에 붙인다
 // 머리줄 왼쪽에 아이콘과 제목, 오른쪽 끝에 금액을 두고, 밑에는 이름, 토큰 수, 비용을 세 열로 맞춘 표를 둔다
 // 열마다 세로 상자로 쌓아 숫자가 줄마다 오른쪽 끝을 맞추고, 빈칸은 공백 한 칸으로 줄 높이를 지킨다
-const desktopCardOf = ({ Box, Svg, Text }: ElementTable<'desktop'>, card: Card) => {
+// 접기: 머리줄 오른쪽 단추(Hide/Show)로 표와 안내를 숨기고 머리줄(제목과 금액)만 남긴다.
+// 접힌 상태는 모든 카드가 함께 쓰므로 한 번 접으면 지난 카드와 새 카드가 모두 접혀 있다
+type Fold = { isFolded: boolean; onToggle: () => unknown }
+
+const desktopCardOf = (
+  { Box, Button, Svg, Text }: ElementTable<'desktop'>,
+  card: Card,
+  { isFolded, onToggle }: Fold
+) => {
   const column = (values: string[], isNumber: boolean) => (
     <Box flexDirection="column" alignItems={isNumber ? 'flex-end' : 'flex-start'}>
       {values.map(value => (
@@ -275,13 +283,20 @@ const desktopCardOf = ({ Box, Svg, Text }: ElementTable<'desktop'>, card: Card) 
               {card.title}
             </Text>
           </Box>
-          {card.total && (
-            <Text size="caption" weight="semibold" tabular>
-              {card.total}
-            </Text>
-          )}
+          <Box flexDirection="row" alignItems="center" gap="sm">
+            {card.total && (
+              <Text size="caption" weight="semibold" tabular>
+                {card.total}
+              </Text>
+            )}
+            <Button key="fold" plain onPress={onToggle}>
+              <Text size="caption" color="permissionShimmer">
+                {isFolded ? 'Show' : 'Hide'}
+              </Text>
+            </Button>
+          </Box>
         </Box>
-        {card.cells.length > 0 && (
+        {!isFolded && card.cells.length > 0 && (
           <Box flexDirection="row" gap="md">
             {column(
               card.cells.map(cell => cell.label),
@@ -298,7 +313,7 @@ const desktopCardOf = ({ Box, Svg, Text }: ElementTable<'desktop'>, card: Card) 
               )}
           </Box>
         )}
-        {card.note && (
+        {!isFolded && card.note && (
           <Text size="caption" dimColor>
             {card.note}
           </Text>
@@ -370,10 +385,11 @@ const promptRows = (
   surface: RenderSurface,
   text: string,
   turn: Turn | undefined,
-  ttl: Ttl
+  ttl: Ttl,
+  fold: Fold
 ) => {
   if (surface === 'desktop') {
-    return desktopCardOf(ui as ElementTable<'desktop'>, inputCardOf(text, turn, ttl))
+    return desktopCardOf(ui as ElementTable<'desktop'>, inputCardOf(text, turn, ttl), fold)
   }
   const cost = inputCostLabel(turn, ttl)
 
@@ -381,9 +397,15 @@ const promptRows = (
 }
 
 // 출력 토큰: 데스크톱 앱은 카드, 그 밖은 한 줄
-const outputRow = (ui: ElementTable, surface: RenderSurface, turn: Turn, ttl: Ttl) =>
+const outputRow = (
+  ui: ElementTable,
+  surface: RenderSurface,
+  turn: Turn,
+  ttl: Ttl,
+  fold: Fold
+) =>
   surface === 'desktop'
-    ? desktopCardOf(ui as ElementTable<'desktop'>, outputCardOf(turn, ttl))
+    ? desktopCardOf(ui as ElementTable<'desktop'>, outputCardOf(turn, ttl), fold)
     : lineOf(ui, outputLabel(turn, ttl))
 
 // 엔진이 그린 답변(engine 노드) 바로 위에 줄을 끼워, 다른 Mod 가 맨 위에 붙인 줄(번역)보다 아래에 온다
@@ -432,6 +454,12 @@ const askedAbove = (
 
   return undefined
 }
+
+// 데스크톱 카드의 접힌 상태와 그것을 바꾸는 단추 동작
+const foldOf = ($: StateDollar, state: Meter): Fold => ({
+  isFolded: state.isFolded === true,
+  onToggle: () => change($, one => ({ ...one, isFolded: !one.isFolded }))
+})
 
 export const register: Register = (on, options) => {
   ttlSetting = isTtl(options.cacheTtl) ? options.cacheTtl : undefined
@@ -575,7 +603,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {row}
-        {promptRows(ui, e.surface, text, turn, ttlOf(state))}
+        {promptRows(ui, e.surface, text, turn, ttlOf(state), foldOf($, state))}
       </Box>
     )
   })
@@ -588,6 +616,7 @@ export const register: Register = (on, options) => {
     const state = await read($, meter)
     const { turns } = state
     const ttl = ttlOf(state)
+    const fold = foldOf($, state)
     // 데스크톱 앱은 답변을 기록 줄 id 가 아니라 API 메시지 id 와 블록 번호(msg_...-t0)로, 그 블록의 글과 함께
     // 묻는다. 이 id 는 플러그인이 알 수 없어서, 그때는 줄의 글이 블록의 글과 같은지로 짝을 맞춘다
     const isBlock = BLOCK_ID.test(e.requestId)
@@ -611,7 +640,7 @@ export const register: Register = (on, options) => {
     const tree = asked
       ? aboveEngine(row, reply => (
           <Box flexDirection="column">
-            {promptRows(ui, e.surface, asked.prompt, asked, ttl)}
+            {promptRows(ui, e.surface, asked.prompt, asked, ttl, fold)}
             {reply}
           </Box>
         ))
@@ -621,7 +650,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {tree}
-        {outputRow(ui, e.surface, ended, ttl)}
+        {outputRow(ui, e.surface, ended, ttl, fold)}
       </Box>
     )
   })

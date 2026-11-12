@@ -280,6 +280,7 @@ const OUTPUT_CARD = [
   'engine',
   'Output',
   '$0.0084',
+  'Hide',
   ...['Output', 'Turn total'],
   ...['420', ' '],
   ...['$0.0084', '$0.0165']
@@ -365,7 +366,7 @@ test('데스크톱 앱이 API 메시지 id 와 블록 번호로 물어도 블록
     requestId: 'msg_01A-t0',
     surface: 'desktop'
   } as const
-  expect((await textsOf($, first)).slice(0, 4)).toEqual(['Input', '$0.0081', 'Prompt', 'Total input'])
+  expect((await textsOf($, first)).slice(0, 4)).toEqual(['Input', '$0.0081', 'Hide', 'Prompt'])
   const last = {
     ...reply('모두 통과했습니다.\n'),
     requestId: 'msg_01B-t0',
@@ -575,7 +576,7 @@ test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변
   const row = { ...prompt('첫 질문'), surface: 'desktop' } as const
 
   // 응답 전에는 어림한 프롬프트 토큰만
-  expect(await textsOf($, row)).toEqual(['engine', 'Input', 'Prompt', '~4'])
+  expect(await textsOf($, row)).toEqual(['engine', 'Input', 'Hide', 'Prompt', '~4'])
 
   for (let index = 0; index < 2; index += 1) await step($, server, 't1', index)
   await complete($, 't1', '첫 답변')
@@ -585,6 +586,7 @@ test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변
     'engine',
     'Input',
     '$0.0096',
+    'Hide',
     ...['Prompt', 'Total input', 'Uncached', 'Cache read', 'Cache write 5m', 'Requests', 'Cached at'],
     ...['~4', '40,715', '15', '40,400 (99.2%)', '300', '2', '13:55:02'],
     ...[' ', ' ', '$0.0001', '$0.0081', '$0.0015', ' ', ' ']
@@ -593,6 +595,7 @@ test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변
     'engine',
     'Output',
     '$0.0084',
+    'Hide',
     ...['Output', 'Turn total'],
     ...['420', ' '],
     ...['$0.0084', '$0.0180']
@@ -607,6 +610,7 @@ test('데스크톱 앱의 카드는 정가를 모르는 모델이면 비용 열 
   expect(await textsOf($, row)).toEqual([
     'engine',
     'Input',
+    'Hide',
     ...['Prompt', 'Total input', 'Uncached', 'Cache read', 'Request', 'Cached at'],
     ...['~4', '1,000', '1,000', '0 (0.0%)', '1', '13:55:02'],
     'No price for claude-future-9'
@@ -614,8 +618,34 @@ test('데스크톱 앱의 카드는 정가를 모르는 모델이면 비용 열 
   expect(await textsOf($, { ...reply('답했습니다.'), surface: 'desktop' })).toEqual([
     'engine',
     'Output',
+    'Hide',
     'Output',
     '100',
     'No price for claude-future-9'
   ])
+})
+
+test('데스크톱 앱의 카드는 Hide 를 누르면 모든 카드가 머리줄만 남고 Show 를 누르면 다시 펼친다', async ($, on) => {
+  const server = engine(on, [priced('claude-opus-5-5', 5, 20000, 300, 300)])
+  await run($, server, 't1', '첫 질문', '첫 답변', 1)
+  const row = { ...prompt('첫 질문'), surface: 'desktop' } as const
+  const answer = { ...reply('첫 답변'), surface: 'desktop' } as const
+
+  const input = await $.ui.mount(row)
+  expect((await input.find({ key: 'fold' }))?.text).toBe('Hide')
+  await input.press({ key: 'fold' })
+  expect((await input.find({ key: 'fold' }))?.text).toBe('Show')
+  await input.unmount()
+
+  // 머리줄의 제목, 금액, 단추만 남고, 다른 카드도 함께 접힌다
+  expect(await textsOf($, row)).toEqual(['engine', 'Input', '$0.0055', 'Show'])
+  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '$0.0060', 'Show'])
+
+  const output = await $.ui.mount(answer)
+  await output.press({ key: 'fold' })
+  await output.unmount()
+  expect((await textsOf($, row)).length).toBeGreaterThan(4)
+
+  // 터미널의 한 줄은 접지 않는다
+  expect((await textsOf($, { ...prompt('첫 질문'), surface: 'terminal' })).length).toBeGreaterThan(1)
 })
