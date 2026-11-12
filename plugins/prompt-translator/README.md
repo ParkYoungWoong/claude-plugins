@@ -1,7 +1,8 @@
 # prompt-translator
 
 A Claude Code mod that translates the prompts you type into the language you choose, the way a native-speaking developer would actually write them.  
-The translation shows right under the prompt in the transcript.  
+The translation shows right under the prompt in the transcript, and `[-]` in front of it folds it away.  
+It is only for reading: Claude still gets the prompt exactly as you typed it.  
 You pick the language when you install it in the terminal, or in the plugin's Settings tab after installing it in the desktop app, and the default is American English.
 
 Read this in [한글](./README.ko.md).
@@ -38,9 +39,10 @@ Run this from the prompt of a Claude Code terminal session.
    <img src="./images/cli-install-3-language.png" alt="Configure prompt-translator with Translation language and Auto-translate limit" width="883">
 
 4. When you see `Installed and configured prompt-translator. Plugin is now active.`, it already works in the current session.  
-   Type a prompt, and the translation shows right under it.
+   Type a prompt, and the translation shows right under it.  
+   The screenshot below has token-meter installed too, so `INPUT` and `OUTPUT` lines show under the translation and the reply.
 
-   <img src="./images/cli-translation.png" alt="A Korean prompt with its English translation shown under it" width="883">
+   <img src="./images/cli-translation.png" alt="A Korean prompt with [-] and its English translation shown under it" width="883">
 
 From a shell, pass the language with `--config`.
 
@@ -98,9 +100,9 @@ The mod reloads right away with the new language.
 
 <img src="./images/cli-config-language.png" alt="The Translation language list in /config" width="883">
 
-After switching to `日本語`, the same kind of prompt is translated into Japanese.
+After switching to `日本語`, Korean prompts are translated into Japanese.
 
-<img src="./images/cli-translation-japanese.png" alt="A Korean prompt with its Japanese translation shown under it" width="883">
+<img src="./images/cli-translation-japanese.png" alt="A Korean prompt with [-] and its Japanese translation shown under it" width="883">
 
 ## How it works
 

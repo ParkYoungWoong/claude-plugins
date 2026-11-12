@@ -1,7 +1,8 @@
 # prompt-translator
 
 입력한 프롬프트를 고른 언어로, 그 언어를 쓰는 개발자가 실제로 쓰는 자연스러운 문장으로 번역하는 Claude Code Mod입니다.  
-번역은 대화 기록의 프롬프트 줄 바로 밑에 보입니다.  
+번역은 대화 기록의 프롬프트 줄 바로 밑에 보이고, 앞의 `[-]`를 누르면 접힙니다.  
+번역은 읽기 위한 것이고, Claude는 입력한 원문을 그대로 받습니다.  
 번역할 언어는 터미널에서는 설치할 때, 데스크톱 앱에서는 설치한 뒤 설정 탭에서 고르고, 기본값은 미국 영어입니다.
 
 [English](./README.md)
@@ -38,9 +39,10 @@ Claude Code 터미널 세션의 프롬프트에서 실행합니다.
    <img src="./images/cli-install-3-language.png" alt="Translation language와 Auto-translate limit이 있는 Configure prompt-translator 화면" width="883">
 
 4. `Installed and configured prompt-translator. Plugin is now active.`가 보이면 지금 세션에서 바로 동작합니다.  
-   프롬프트를 입력하면 바로 밑에 번역이 보입니다.
+   프롬프트를 입력하면 바로 밑에 번역이 보입니다.  
+   아래 화면은 token-meter도 함께 설치한 모습이라 번역 밑에 `INPUT`, 답변 밑에 `OUTPUT` 줄이 있습니다.
 
-   <img src="./images/cli-translation.png" alt="한글 프롬프트 밑에 영어 번역이 보이는 화면" width="883">
+   <img src="./images/cli-translation.png" alt="한글 프롬프트 밑에 [-] 단추와 영어 번역이 보이는 화면" width="883">
 
 셸에서 설치할 때는 `--config`로 언어를 지정합니다.
 
@@ -98,9 +100,9 @@ Mod가 바로 새 언어로 다시 로드됩니다.
 
 <img src="./images/cli-config-language.png" alt="/config의 Translation language 목록" width="883">
 
-`日本語`로 바꾼 뒤에는 같은 한글 프롬프트가 일본어로 번역됩니다.
+`日本語`로 바꾼 뒤에는 한글 프롬프트가 일본어로 번역됩니다.
 
-<img src="./images/cli-translation-japanese.png" alt="한글 프롬프트 밑에 일본어 번역이 보이는 화면" width="883">
+<img src="./images/cli-translation-japanese.png" alt="한글 프롬프트 밑에 [-] 단추와 일본어 번역이 보이는 화면" width="883">
 
 ## 동작
 
