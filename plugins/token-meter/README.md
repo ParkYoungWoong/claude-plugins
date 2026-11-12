@@ -152,9 +152,9 @@ Each card sits at the right edge, like your prompts, and looks like prompt-trans
 
 A card holds everything the terminal table does.
 
-- Input card: `Input` and the input cost on top.  
-  Under it, one line gives the turn number, the requests and the time it was cached, and a table lists total, cache read, cache write (with how long the cache keeps it), uncached, prompt and context in token, share and cost columns.
-- Output card: `Output` and the output cost on top, then the turn number, the output tokens and the turn total.
+- Input card: `Input`, the turn number (`(turn 3)`) and the input cost on top.  
+  Under it, one line gives the requests and the time it was cached, and a table lists total, cache read, cache write (with how long the cache keeps it), uncached, prompt and context in token, share and cost columns.
+- Output card: `Output`, the turn number and the output cost on top, then the output tokens and the turn total.
 
 <img src="./images/desktop-cards.png" alt="An input card under the prompt and an output card under the reply, with token counts and costs, in the desktop app" width="736">
 
@@ -162,7 +162,7 @@ The screenshot is taken with prompt-translator installed too, so a translation c
 
 At the right end of each card's top line is a fold button in a faint gray box.
 
-- Press the minus button to fold that card's table away and keep only the title and the cost on its top line.  
+- Press the minus button to fold that card's table away and keep only the title, the turn number and the cost on its top line.  
   The button turns into a plus, which unfolds the card again.
 - Each card folds on its own.  
   The input card and the output card of the same turn fold apart too.

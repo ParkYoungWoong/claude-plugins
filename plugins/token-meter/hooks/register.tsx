@@ -203,13 +203,15 @@ type Row = {
 
 type Side = 'input' | 'output'
 
-// meta: 머리줄 괄호에 넣는 맥락(턴 번호, 요청 횟수, 캐시에 쓴 시각)
+// turn: 턴 번호. 터미널은 머리줄 괄호 맨 앞에, 데스크톱은 접어도 보이게 머리줄 제목 옆에 둔다
+// meta: 머리줄 괄호에 넣는 그 밖의 맥락(요청 횟수, 캐시에 쓴 시각)
 // summary: 접힌 머리줄에만 덧붙이는 맥락(출력의 턴 합계)
 // isOpenable: 펼칠 표가 있는지(응답 전이나 작업 중에 보낸 프롬프트는 없다)
 type Sheet = {
   side: Side
   title: string
   icon: string
+  turn?: string
   meta: string[]
   summary: string[]
   tokens: string
@@ -222,7 +224,7 @@ type Sheet = {
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
 // 턴 번호는 개수가 아니라 차례라서 page 3 처럼 이름 뒤에 숫자를 쓴다
-const turnMeta = (turn: Turn | undefined) => (turn?.number ? [`turn ${turn.number}`] : [])
+const turnOf = (turn: Turn | undefined) => (turn?.number ? { turn: `turn ${turn.number}` } : {})
 
 // 데스크톱 앱 카드 머리줄의 아이콘(Material Icons 의 arrow_upward, arrow_downward, Apache 2.0):
 // 서버로 보낸 입력은 위로, 받은 출력은 아래로. 어두운 테마와 밝은 테마 모두에서 보이는 회색
@@ -241,9 +243,9 @@ const inputSheetOf = (text: string, turn: Turn | undefined, ttl: Ttl): Sheet => 
   const sent = turn?.sent
   if (!turn || !sent) {
     // 턴이 없는 프롬프트는 아직 턴이 시작되기 전이거나, 작업 중에 보내 진행 중인 턴에 합쳐진 것이다
-    const meta = turn ? [...turnMeta(turn), 'waiting for response'] : []
+    const meta = turn ? ['waiting for response'] : []
 
-    return { ...base, meta, tokens: prompt, rows: [promptRow], isOpenable: false }
+    return { ...base, ...turnOf(turn), meta, tokens: prompt, rows: [promptRow], isOpenable: false }
   }
 
   const read = turn.cacheRead ?? 0
@@ -279,12 +281,13 @@ const inputSheetOf = (text: string, turn: Turn | undefined, ttl: Ttl): Sheet => 
     promptRow
   )
   if (turn.added) rows.push({ label: 'context', tokens: comma(turn.added) })
-  const meta = [...turnMeta(turn)]
+  const meta: string[] = []
   if (turn.requests) meta.push(plural(turn.requests, 'request'))
   if (turn.cachedAt) meta.push(`cached ${clock(turn.cachedAt)}`)
 
   return {
     ...base,
+    ...turnOf(turn),
     meta,
     tokens: comma(sent),
     cost: turn.unpriced ? '$?' : total,
@@ -306,7 +309,8 @@ const outputSheetOf = (turn: Turn, ttl: Ttl): Sheet => {
     side: 'output',
     title: 'OUTPUT',
     icon: RECEIVED_ICON,
-    meta: turnMeta(turn),
+    ...turnOf(turn),
+    meta: [],
     summary: total ? [`turn total ${total}`] : [],
     tokens: comma(turn.output),
     cost: turn.unpriced ? '$?' : output,
@@ -335,13 +339,14 @@ const SUMMARY_COST = 8
 const terminalSheetOf = ({ Box, Button, Text }: ElementTable, sheet: Sheet, fold: Fold) => {
   const toggle = sheet.isOpenable ? fold : undefined
   const isOpen = toggle !== undefined && !toggle.isFolded
+  const lead = sheet.turn ? [sheet.turn] : []
   const context = (parts: string[]) => (parts.length ? `(${parts.join(' / ')})` : '')
   const head = isOpen
-    ? [`${sheet.title}  `, context(sheet.meta)]
+    ? [`${sheet.title}  `, context([...lead, ...sheet.meta])]
     : [
         `${sheet.title.padEnd(TITLE)}${sheet.tokens.padStart(TOKENS)} tok ` +
           `${(sheet.cost ?? '').padStart(SUMMARY_COST)}  `,
-        context([...sheet.meta, ...sheet.summary])
+        context([...lead, ...sheet.meta, ...sheet.summary])
       ]
   const hasShare = sheet.rows.some(row => row.share)
   const hasCost = sheet.rows.some(row => row.cost)
@@ -478,6 +483,11 @@ const desktopCardOf = (
             <Text size="caption" dimColor>
               {capital(sheet.side)}
             </Text>
+            {sheet.turn && (
+              <Text size="caption" dimColor>
+                {`(${sheet.turn})`}
+              </Text>
+            )}
           </Box>
           <Box flexDirection="row" alignItems="center" gap="sm">
             {sheet.cost && (

@@ -325,7 +325,7 @@ test('데스크톱 앱이 API 메시지 id 와 블록 번호로 물어도 블록
   await complete($, 'turn-1', '모두 통과했습니다.')
 
   const first = { ...reply('목표를 확인했습니다.'), requestId: 'msg_01A-t0' }
-  expect((await textsOf($, desktop(first))).slice(0, 3)).toEqual(['Input', '$0.0081', FOLD])
+  expect((await textsOf($, desktop(first))).slice(0, 3)).toEqual(['Input', '(turn 1)', '$0.0081'])
   const last = { ...reply('모두 통과했습니다.\n'), requestId: 'msg_01B-t0' }
   expect(await textsOf($, desktop(last))).toEqual(OUTPUT_CARD)
   // 글이 다른 블록에는 붙이지 않는다
@@ -535,8 +535,8 @@ test('데스크톱 앱의 카드는 접기 단추를 누른 카드만 머리줄�
   expect((await input.find({ key: 'fold-input' }))?.text).toBe(UNFOLD)
   await input.unmount()
 
-  // 누른 카드만 머리줄의 제목, 금액, 단추가 남고, 같은 턴의 출력 카드와 다른 턴의 카드는 그대로다
-  expect(await textsOf($, first)).toEqual(['engine', 'Input', '$0.0055', UNFOLD])
+  // 누른 카드만 머리줄의 제목, 턴 번호, 금액, 단추가 남고, 같은 턴의 출력 카드와 다른 턴의 카드는 그대로다
+  expect(await textsOf($, first)).toEqual(['engine', 'Input', '(turn 1)', '$0.0055', UNFOLD])
   expect((await textsOf($, answer)).length).toBeGreaterThan(4)
   expect((await textsOf($, second)).length).toBeGreaterThan(4)
 
@@ -544,14 +544,14 @@ test('데스크톱 앱의 카드는 접기 단추를 누른 카드만 머리줄�
   const output = await $.ui.mount(answer)
   await output.press({ key: 'fold-output' })
   await output.unmount()
-  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '$0.0060', UNFOLD])
+  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '(turn 1)', '$0.0060', UNFOLD])
 
   // 다시 누르면 펼친다
   const again = await $.ui.mount(first)
   await again.press({ key: 'fold-input' })
   await again.unmount()
   expect((await textsOf($, first)).length).toBeGreaterThan(4)
-  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '$0.0060', UNFOLD])
+  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '(turn 1)', '$0.0060', UNFOLD])
 
   // 데스크톱에서 접은 상태는 터미널의 펼침 상태와 따로 간다: 터미널은 접힌 채로 시작한다
   expect(await screen($, terminal(prompt('둘째 질문')))).toHaveLength(2)
@@ -593,9 +593,10 @@ const COST_OUTPUT_5M: unknown[] = [
 const DESKTOP_INPUT: unknown[] = [
   "engine",
   "Input",
+  "(turn 1)",
   "$0.0096",
   " − ",
-  "Turn 1 / 2 requests / cached 13:55:02",
+  "2 requests / cached 13:55:02",
   "Total",
   "Cache read",
   "Cache write",
@@ -625,9 +626,9 @@ const DESKTOP_INPUT: unknown[] = [
 const DESKTOP_OUTPUT: unknown[] = [
   "engine",
   "Output",
+  "(turn 1)",
   "$0.0084",
   " − ",
-  "Turn 1",
   "Output",
   "Turn total",
   "420",
@@ -638,9 +639,10 @@ const DESKTOP_OUTPUT: unknown[] = [
 const DESKTOP_UNPRICED_INPUT: unknown[] = [
   "engine",
   "Input",
+  "(turn 1)",
   "$?",
   " − ",
-  "Turn 1 / 1 request / cached 13:55:02",
+  "1 request / cached 13:55:02",
   "Total",
   "Cache read",
   "Uncached",
@@ -658,9 +660,9 @@ const DESKTOP_UNPRICED_INPUT: unknown[] = [
 const DESKTOP_UNPRICED_OUTPUT: unknown[] = [
   "engine",
   "Output",
+  "(turn 1)",
   "$?",
   " − ",
-  "Turn 1",
   "Output",
   "100",
   "No price for claude-future-9",
@@ -668,7 +670,8 @@ const DESKTOP_UNPRICED_OUTPUT: unknown[] = [
 const DESKTOP_WAITING: unknown[] = [
   "engine",
   "Input",
-  "Turn 1 / waiting for response",
+  "(turn 1)",
+  "Waiting for response",
   "Prompt",
   "~4",
 ]
@@ -713,9 +716,9 @@ const OPUS_5: unknown[] = [
 const OUTPUT_CARD: unknown[] = [
   "engine",
   "Output",
+  "(turn 1)",
   "$0.0084",
   " − ",
-  "Turn 1",
   "Output",
   "Turn total",
   "420",
