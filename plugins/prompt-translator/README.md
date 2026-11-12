@@ -72,8 +72,10 @@ The desktop app doesn't run `/plugin`, so install it from the plugin settings.
 
    <img src="./images/desktop-en-3-language.png" alt="The Settings tab of Prompt translator with Translation language and Auto-translate limit" width="1022">
 
-5. In a new session, the translation shows in a bubble right under your prompt, aligned to the right like the prompt itself.  
-   The language is at the top, and `Hide` at the top right folds the bubble down to that line.
+5. In a new session, the translation shows in a card right under your prompt, aligned to the right like the prompt itself.  
+   The language is at the left of its top line, and a minus button in a faint gray box is at the right end.  
+   Press the minus button to fold the card down to its top line, and the button turns into a plus. Press the plus to unfold it.  
+   The screenshot below was taken before the button changed, so it shows `Hide` in its place.
 
    <img src="./images/desktop-en-4-translation.png" alt="A Korean prompt with its English translation in a bubble under it in the desktop app" width="635">
 
@@ -117,7 +119,8 @@ After switching to `日本語`, the same kind of prompt is translated into Japan
   Claude's work goes on as usual.
 - For a slash command that puts Claude to work, such as `/goal` or a skill, the text after the command (its arguments) is translated.  
   A command row has no spot a mod can draw under, so the translation shows right above Claude's first reply to that command.
-- It also works in Claude Code in the Claude desktop app, where the translation is drawn as a bubble under the prompt with `Hide`/`Show` at its top right.  
+- It also works in Claude Code in the Claude desktop app, where the translation is drawn as a card under the prompt.  
+  Instead of `[Hide]`/`[Show]`, the minus and plus button at the right end of the card's top line folds and unfolds it (the same button as on token-meter's cards).  
   A first prompt sent before the app attaches its view to the session is translated as soon as the view attaches.
 
 ## When it doesn't translate

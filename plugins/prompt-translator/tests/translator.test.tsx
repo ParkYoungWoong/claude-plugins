@@ -23,8 +23,9 @@ const row = (text: string) =>
 const SURFACES = ['terminal', 'desktop'] as const
 
 // 숨기기 단추의 글: 터미널은 대괄호로 감싸고, 데스크톱 앱은 앱의 단추 모양으로 그린다
-const HIDE = { terminal: '[Hide]', desktop: 'Hide' }
-const SHOW = { terminal: '[Show]', desktop: 'Show' }
+// 데스크톱 앱의 단추는 빼기 기호(U+2212)와 더하기를 고정폭 글꼴로 앞뒤 한 칸씩 띄워 그린다
+const HIDE = { terminal: '[Hide]', desktop: ' \u2212 ' }
+const SHOW = { terminal: '[Show]', desktop: ' + ' }
 
 type Mounted = { findAll: (query: { type: 'Text' }) => Promise<{ text?: string }[]> }
 
@@ -337,13 +338,13 @@ test(
 
     const ui = await $.ui.mount({ ...row('이 버그 고쳐 줘\n둘째 줄'), surface: 'desktop' })
     // 낱말로 나누지 않고 한 덩어리로 그려 줄바꿈은 앱에 맡긴다
-    expect(await texts(ui)).toEqual(['engine', '日本語', 'Hide', 'このバグを直して\n二行目'])
+    expect(await texts(ui)).toEqual(['engine', '日本語', HIDE.desktop, 'このバグを直して\n二行目'])
     expect(await ui.find({ type: 'Svg' })).toBeDefined()
-    expect((await ui.find({ type: 'Text', text: 'Hide' }))?.props?.color).toBe('permissionShimmer')
+    expect((await ui.find({ type: 'Text', text: HIDE.desktop }))?.props?.color).toBe('permissionShimmer')
 
     await ui.press({ key: 'toggle' })
-    expect((await ui.find({ key: 'toggle' }))?.text).toBe('Show')
-    expect(await texts(ui)).toEqual(['engine', '日本語', 'Show'])
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe(SHOW.desktop)
+    expect(await texts(ui)).toEqual(['engine', '日本語', SHOW.desktop])
     await ui.unmount()
   }
 )
@@ -605,7 +606,7 @@ test('화면이 붙기 전에 보낸 프롬프트는 화면이 붙을 때 번역
       surface: 'desktop',
       props: { text, origin: { kind: 'sdk' }, isExpanded: false }
     })
-    expect((await ui.find({ key: 'toggle' }))?.text).toBe('Hide')
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe(HIDE.desktop)
     await ui.unmount()
   }
 

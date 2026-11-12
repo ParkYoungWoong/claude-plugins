@@ -200,8 +200,14 @@ const underPrompt = (tree: RenderElement, stack: (row: RenderElement) => RenderE
 const TRANSLATE_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#8E8E93"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>'
 
+// 데스크톱 앱의 숨기기 단추 글자: 펼친 번역은 빼기(숨기기), 숨긴 번역은 더하기(보이기)
+// 하이픈은 더하기보다 낮게 놓여서 더하기와 같은 높이, 같은 폭인 빼기 기호(U+2212)를 쓴다
+// 데스크톱 앱은 label 이 있으면 안의 글자 대신 그리므로 주지 않는다
+const HIDE_ICON = '\u2212'
+const SHOW_ICON = '+'
+
 // 데스크톱 앱의 번역: 입력 말풍선 바로 밑에 같은 배경색의 말풍선으로 붙여 Claude 의 답변과 구분하고,
-// 머리줄 왼쪽에 아이콘과 언어, 오른쪽 끝에 숨기기 단추를 둔다(카드가 오른쪽에 붙어 있어 숨겨도 단추 자리가 그대로다)
+// 머리줄 왼쪽에 아이콘과 언어, 오른쪽 끝에 숨기기 단추(빼기, 더하기)를 둔다(카드가 오른쪽에 붙어 있어 숨겨도 단추 자리가 그대로다)
 // 숨기면 머리줄만 남고, 번역 중이거나 실패하면 머리줄에 그 상태를 쓴다
 // 카드 폭에는 최대값을 줄 수 없어서, 왼쪽에 줄지 않는 빈 칸을 두어 긴 번역도 말풍선처럼 오른쪽 80% 안에서 접히게 한다
 // 입력 말풍선은 글자색을 옅게 깐 배경이라 테마 키로는 같은 색을 낼 수 없어, 어두운 테마와 밝은 테마 모두에서
@@ -241,9 +247,26 @@ const desktopLineOf = (
             </Text>
           </Box>
           {isDone && (
-            <Button key="toggle" plain onPress={onToggle}>
-              <Text color="permissionShimmer">{entry.isHidden ? 'Show' : 'Hide'}</Text>
-            </Button>
+            // 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다(token-meter 의 카드 접기 단추와 같다).
+            // 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다. 모서리는 테두리가 있을 때만 둥글게 그려져
+            // 투명한 테두리를 두고, 단추의 호버 배경과 같은 기준 radius 로 그리는 single 을 쓴다.
+            // 테두리가 있는 칸에 데스크톱 앱이 넣는 기본 여백(md lg)으로 칸이 커지지 않게 여백은 0 으로 못박는다.
+            // 고정폭 글꼴과 앞뒤 한 칸으로 빼기와 더하기가 바뀌어도 칸 크기가 같다
+            <Box
+              paddingX={0}
+              paddingY={0}
+              alignItems="center"
+              justifyContent="center"
+              borderStyle="single"
+              borderColor="rgba(128, 128, 128, 0)"
+              backgroundColor="rgba(128, 128, 128, 0.12)"
+            >
+              <Button key="toggle" plain onPress={onToggle}>
+                <Text size="caption" mono color="permissionShimmer">
+                  {` ${entry.isHidden ? SHOW_ICON : HIDE_ICON} `}
+                </Text>
+              </Button>
+            </Box>
           )}
         </Box>
         {isDone && !entry.isHidden && <Text color="suggestion">{entry.translation}</Text>}

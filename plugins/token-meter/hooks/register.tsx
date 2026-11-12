@@ -298,14 +298,16 @@ const desktopCardOf = (
             )}
             {fold && (
               // 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다. 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다.
-              // 모서리는 테두리가 있을 때만 둥글게 그려져 투명한 테두리를 두고, 칸이 커지지 않게 여백은 0 으로 못박는다.
+              // 모서리는 테두리가 있을 때만 둥글게 그려져 투명한 테두리를 둔다. round 는 단추의 호버 배경(radius - 2px)보다
+              // 4px 더 둥글어 호버 때 모양이 달라지므로, 기준 radius 그대로인 single 을 쓴다.
+              // 테두리가 있는 칸에 데스크톱 앱이 넣는 기본 여백(md lg)으로 칸이 커지지 않게 여백은 0 으로 못박는다.
               // 고정폭 글꼴과 앞뒤 한 칸으로 빼기와 더하기가 바뀌어도 칸 크기가 같다
               <Box
                 paddingX={0}
                 paddingY={0}
                 alignItems="center"
                 justifyContent="center"
-                borderStyle="round"
+                borderStyle="single"
                 borderColor="rgba(128, 128, 128, 0)"
                 backgroundColor="rgba(128, 128, 128, 0.12)"
               >

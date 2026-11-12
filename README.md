@@ -35,7 +35,7 @@ See the [prompt-translator README](./plugins/prompt-translator/README.md#claude-
 Translates the prompts you type into the language you choose and shows the translation right under each prompt.  
 You pick the language when you install it: English (US), English (UK), 한글, 日本語, 中文 (简体) or Español, with English (US) as the default.  
 The translation is only for reading, and Claude still works from your original prompt.  
-In the desktop app, the translation shows as a bubble under your prompt.
+Fold a translation with `[Hide]` in front of it in the terminal, or with the minus button on its card under your prompt in the desktop app.
 
 ```plaintext
 > 이 함수에 에러 처리 좀 추가해 줘
@@ -45,7 +45,8 @@ In the desktop app, the translation shows as a bubble under your prompt.
 ### [token-meter](./plugins/token-meter)
 
 Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply, each with what it costs at the API list price.  
-In the desktop app, they show as cards at the right edge, like your prompts.
+Cache reads and writes are priced apart, and each request is priced at its own model's rate even when the model changes mid-turn.  
+In the desktop app, they show as an input card and an output card at the right edge, and the minus button on each card folds it down to its title and cost.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
@@ -59,7 +60,9 @@ In the desktop app, they show as cards at the right edge, like your prompts.
 ## Requirements
 
 Both plugins are mods, plugins that run as a hooks module, so they need a version of Claude Code that supports mods.  
-They were tested on Claude Code 2.1.312 in the terminal (both the default and the fullscreen mode) and in Claude Code in the Claude desktop app 4.29.
+They were tested on Claude Code 2.1.322 in the terminal and in the Claude desktop app 5.1231 (Claude Code 2.1.321).
+
+After you update a plugin, run `/reload-plugins` in a session that is already open, or open a new session, to see the change.
 
 ## License
 

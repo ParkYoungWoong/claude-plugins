@@ -108,14 +108,21 @@ Subagent requests are not counted, and notification rows are left alone.
 
 ## Claude desktop app
 
-In Claude Code in the Claude desktop app, the numbers show in the same places as cards, like prompt-translator's translation card.  
-Each card sits at the right edge, like your prompts.
+In Claude Code in the Claude desktop app, the numbers show in the same places as cards instead of lines.  
+Each card sits at the right edge, like your prompts, and looks like prompt-translator's translation card.
 
 - Input card: `Input` and the input cost on top, then a table of prompt, context, total input, uncached, cache read (with its share), cache write, requests and the time it was cached, with the cost of each part.
 - Output card: `Output` and the output cost on top, then the output tokens and the turn total.
 
-Press `-` at the right of a card's top line to fold that card's table away and keep only the title and the cost.  
-Each card folds on its own. Press `+` to unfold it.
+At the right end of each card's top line is a fold button in a faint gray box.
+
+- Press the minus button to fold that card's table away and keep only the title and the cost on its top line.  
+  The button turns into a plus, which unfolds the card again.
+- Each card folds on its own.  
+  The input card and the output card of the same turn fold apart too.
+- A folded card stays folded for the session, even when the screen is drawn again.
+
+Lines in the terminal are short already, so they have no fold button.
 
 ## Turning it off
 

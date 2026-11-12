@@ -72,8 +72,10 @@ claude plugin install prompt-translator --marketplace ParkYoungWoong/claude-plug
 
    <img src="./images/desktop-ko-3-language.png" alt="Translation language와 Auto-translate limit이 있는 Prompt translator의 설정 탭" width="1022">
 
-5. 새 세션에서 프롬프트를 보내면 입력 말풍선 바로 밑에 번역이 말풍선으로 오른쪽에 붙어 보입니다.  
-   위쪽에 번역 언어가, 오른쪽 위에 `Hide`가 있고, 누르면 말풍선이 그 한 줄로 접힙니다.
+5. 새 세션에서 프롬프트를 보내면 입력 말풍선 바로 밑에 번역 카드가 오른쪽에 붙어 보입니다.  
+   머리줄 왼쪽에 번역 언어가, 오른쪽 끝에 옅은 회색 칸에 담긴 빼기 단추가 있습니다.  
+   빼기 단추를 누르면 카드가 머리줄 한 줄로 접히고 단추가 더하기로 바뀝니다. 더하기를 누르면 다시 펼쳐집니다.  
+   아래 화면은 단추를 바꾸기 전에 찍은 것이라 단추 자리에 `Hide`가 보입니다.
 
    <img src="./images/desktop-ko-4-translation.png" alt="데스크톱 앱에서 한글 프롬프트 밑의 말풍선에 영어 번역이 보이는 화면" width="635">
 
@@ -117,7 +119,8 @@ Mod가 바로 새 언어로 다시 로드됩니다.
   Claude의 작업은 그대로 진행됩니다.
 - `/goal`이나 스킬처럼 Claude에게 일을 시키는 슬래시 명령은 명령 뒤에 쓴 글(인자)을 번역합니다.  
   명령 줄에는 Mod가 그릴 자리가 없어서, 번역은 그 명령으로 시작한 Claude의 첫 답변 바로 위에 보입니다.
-- 클로드 데스크톱 앱의 Claude Code에서도 동작하며, 번역은 프롬프트 밑의 말풍선으로 보이고 `Hide`/`Show`는 말풍선 오른쪽 위에 있습니다.  
+- 클로드 데스크톱 앱의 Claude Code에서도 동작하며, 번역은 프롬프트 밑의 카드로 보입니다.  
+  `[Hide]`/`[Show]` 대신 카드 머리줄 오른쪽 끝의 빼기/더하기 단추로 접고 펼칩니다(token-meter 카드의 단추와 같습니다).  
   앱이 세션 화면을 붙이기 전에 보낸 첫 프롬프트는 화면이 붙는 대로 번역합니다.
 
 ## 번역하지 않는 경우
