@@ -2,7 +2,7 @@
 
 A Claude Code mod that translates the prompts you type into the language you choose, the way a native-speaking developer would actually write them.  
 The translation shows right under the prompt in the transcript.  
-You pick the language when you install it, and the default is American English.
+You pick the language when you install it in the terminal, or in the plugin's Settings tab after installing it in the desktop app, and the default is American English.
 
 Read this in [한글](./README.ko.md).
 
@@ -32,7 +32,7 @@ Run this from the prompt of a Claude Code terminal session.
    <img src="./images/cli-install-2-scope.png" alt="Plugin Details with the install scopes" width="883">
 
 3. Pick the translation language with ←/→ and press Enter.  
-   Type a number for `Auto-translate limit` and press Enter, or just press Enter to keep the default of 300.  
+   Type a number for `Auto-translate limit` (the longest prompt, in characters, to translate on its own) and press Enter, or just press Enter to keep the default of 300.  
    Then press Enter on `Save configuration`.
 
    <img src="./images/cli-install-3-language.png" alt="Configure prompt-translator with Translation language and Auto-translate limit" width="883">
@@ -111,8 +111,8 @@ After switching to `日本語`, the same kind of prompt is translated into Japan
 - The translation is attached to the prompt row, so it scrolls along with the transcript.
 - Click `[-]` in front of a translation to fold that translation alone, and it turns into `[+]` followed by the translation language.  
   Click `[+]` to bring the translation back. The same button folds token-meter's lines.
-- The translation starts right after the button, and a long one wraps under the button instead of leaving an empty column beside it.  
-  Line breaks follow your prompt: a blank line shows up only where your prompt has one.
+- The translation starts right after `[-]`, and when a long one wraps, the next line starts under `[-]`.  
+  A blank line shows up only where your prompt has one.
 - Code, file paths, commands, identifiers, URLs, @mentions, and anything inside backticks stay as written.  
   Quoted text meant to be used verbatim (an exact reply, a UI label, a commit message) also stays in its original language.
 - When a translation fails, only `Could not translate (reason)` is shown.  
@@ -132,7 +132,7 @@ After switching to `日本語`, the same kind of prompt is translated into Japan
 - Messages you didn't type yourself, such as task notifications
 - Runs without a screen (`claude -p`)
 - Prompts longer than the auto-translate limit (300 characters by default), spaces and pasted text included.  
-  Nothing is shown for these.
+  Nothing is shown for these, unless the prompt contains `ultratranslate` (see below).
 
 ## Translating long prompts: `ultratranslate`
 

@@ -16,7 +16,7 @@
     {
       "name": "token-meter",
       "source": "./plugins/token-meter",
-      "description": "Shows the tokens each turn used right under its prompt and its last reply",
+      "description": "Shows each turn's tokens and what they cost at list price under its prompt and last reply, as a foldable table with the turn number",
       "category": "productivity"
     }
   ]

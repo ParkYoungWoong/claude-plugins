@@ -1,8 +1,11 @@
 # token-meter
 
-A Claude Code mod that shows token counts in the transcript.  
-The input tokens of each turn appear under its prompt, and the output tokens appear under the turn's last reply.  
-Each comes with what it costs at the Anthropic API list price.
+A Claude Code mod that shows the tokens each turn used, and what they cost, in the transcript.  
+A turn is one prompt and all the work Claude does for it.  
+Each turn's input appears under its prompt and its output under the turn's last reply, with the turn number.  
+Costs are priced at the Anthropic API list price, with cache reads and cache writes counted apart.  
+In the terminal each starts as one folded line, which unfolds into a table with token, share and cost columns lined up.  
+In the desktop app the same numbers start as unfolded cards.
 
 Read this in [한글](./README.ko.md).
 
@@ -27,7 +30,7 @@ For other ways to install, see the [repository README](../../README.md#install).
 
 In the terminal, the input and the output each show as one folded line.  
 Press `[+]` in front of a line to unfold it into a table, and `[-]` to fold it again.  
-Each line folds on its own, and an unfolded line stays unfolded for the session.
+Each line folds on its own, and an unfolded line stays unfolded when the screen is drawn again.
 
 ```plaintext
 > 이 버그를 고쳐 줄래
@@ -55,20 +58,20 @@ The context in parentheses on the top line:
 - `N requests`: how many requests the turn made.  
   It goes up each time Claude uses a tool.
 - `cached HH:MM:SS`: when the server started answering the first request that carried this prompt, in this computer's time zone.  
-  By then the prompt has been written to the prompt cache.
+  By then the input is stored in the prompt cache.
 - `turn total $N` (on the folded output line): what the turn costs, input and output together.
 
 The input table:
 
 - `total`: the input tokens sent to the server during the turn, and what they cost.  
   Every request resends the system prompt and the whole conversation so far, so this adds up each request's full input (input + cache read + cache write).  
-  The tokens and costs of the three rows below it (`cache read`, `cache write`, `uncached`) add up to `total`.
+  The tokens of the three rows below it (`cache read`, `cache write`, `uncached`) add up to `total`, and so do their costs, give or take rounding.
 - `cache read`: tokens read from the prompt cache.
 - `cache write`: tokens newly written to the prompt cache.  
   The `(1h)` or `(5m)` at the end is how long the cache keeps them, and the row is left out when nothing was written.
 - `uncached`: input that did not go through the cache.
 - `%`: the row's share of `total`.  
-  It is rounded down to one decimal place, so it never shows 100.0% unless everything came from that row.
+  It keeps one decimal place and drops the rest, so it never shows 100.0% unless everything came from that row.
 - `prompt ~N`: tokens estimated from the length of what you typed.  
   Hangul counts as about 1.35 tokens per character, and other characters as 1 token per 3.2 characters (measured on Opus 5.5).
 - `context N`: the tokens this prompt actually added to the context.  
@@ -87,7 +90,7 @@ Names and column headings are dimmed, and the numbers on a total row are bold.
 Each request is priced on its own, at the list price of the model that answered it.  
 So a turn whose model changes partway (a fallback, `/model`) is still priced right.  
 Amounts are shown to four decimal places, and an amount too small for that shows as `<$0.0001`.  
-Each amount is rounded on its own, so the parts in parentheses can be off from the total by $0.0001.
+Each amount is rounded on its own, so the costs of the rows in a table can add up to $0.0001 off from `total` or `turn total`.
 
 | Model | Input | Cache read | Output |
 | --- | --- | --- | --- |
@@ -99,21 +102,22 @@ Each amount is rounded on its own, so the parts in parentheses can be off from t
 | Sonnet 5.5 | $2 | $0.10 | $10 |
 | Sonnet 5 | $2 | $0.20 | $10 |
 | Sonnet 4.6 | $3 | $0.30 | $15 |
-| Haiku 5.5 (prompt up to 100K) | $0.10 | $0.01 | $0.50 |
-| Haiku 5.5 (prompt over 100K) | $0.50 | $0.05 | $2.50 |
+| Haiku 5.5 (request input up to 100K) | $0.10 | $0.01 | $0.50 |
+| Haiku 5.5 (request input over 100K) | $0.50 | $0.05 | $2.50 |
 | Haiku 4.5 | $1 | $0.10 | $5 |
 
 Prices are per million tokens, the Anthropic API list prices as of 2026-11-03.  
 Haiku 5.5 picks its rate for each request by that request's whole input.
 
 A cache write costs 1.25x the input price when the cache keeps it for 5 minutes, and 2x for 1 hour.  
-The `cacheTtl` setting chooses which (`auto`, `5m`, `1h`), and `auto` follows Claude Code.  
+The `cacheTtl` setting chooses which (`auto`, `5m`, `1h`), and it defaults to `auto`.  
+`auto` decides in the same order Claude Code does.  
 Installing with `/plugin` asks for it, and you can change it later in `/config` or, in the desktop app, in the plugin's settings tab.
 
 1. `FORCE_PROMPT_CACHING_5M` set: 5 minutes.
 2. `CLAUDE_CODE_PROMPT_CACHE_TTL` or the `promptCacheTtl` setting: that value.
 3. `ENABLE_PROMPT_CACHING_1H` set: 1 hour.
-4. Otherwise 1 hour on a Claude subscription (the session reports usage limit windows), and 5 minutes on an API key.
+4. Otherwise 1 hour when signed in with a Claude subscription, and 5 minutes on an API key (a subscription is told apart by the usage limit details the session receives).
 
 Things to know:
 
@@ -134,7 +138,8 @@ Before the first response arrives, only the estimated prompt tokens and the turn
 ```
 
 The rest fills in and the button appears once the response comes in.  
-Subagent requests are not counted, and notification rows are left alone.
+A desktop card likewise holds only the turn number and the prompt tokens, with no button, until then.  
+Rows a person didn't type, such as task notifications, are left alone.
 
 ## Slash commands and prompts sent mid-turn
 
@@ -166,7 +171,8 @@ At the right end of each card's top line is a fold button in a faint gray box.
   The button turns into a plus, which unfolds the card again.
 - Each card folds on its own.  
   The input card and the output card of the same turn fold apart too.
-- Desktop cards start unfolded and terminal lines start folded, and each screen keeps its own folding.
+- Terminal lines start folded and desktop cards start unfolded.  
+  Folding or unfolding on one screen doesn't touch the other.
 
 ## Turning it off
 

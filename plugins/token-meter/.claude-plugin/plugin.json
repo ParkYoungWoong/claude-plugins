@@ -1,7 +1,7 @@
 {
   "name": "token-meter",
-  "version": "0.13.1",
-  "description": "Shows the tokens each turn used, and what they cost at list price, right under its prompt and its last reply",
+  "version": "0.13.2",
+  "description": "Shows each turn's tokens and what they cost at list price under its prompt and last reply, as a foldable table with the turn number",
   "author": {
     "name": "ParkYoungWoong",
     "url": "https://heropy.dev"
