@@ -1,6 +1,6 @@
 {
   "name": "token-meter",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Shows each turn's tokens and what they cost at list price under its prompt and last reply, as a foldable table with the turn number",
   "author": {
     "name": "ParkYoungWoong",

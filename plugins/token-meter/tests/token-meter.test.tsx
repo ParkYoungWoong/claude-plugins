@@ -492,6 +492,8 @@ const textsOf = async ($: Engine, mount: Mount, open: string[] = []) => {
 // 카드 머리줄의 접기 단추(펼친 카드는 빼기 기호, 접힌 카드는 더하기)
 const FOLD = ' − '
 const UNFOLD = ' + '
+// 카드 머리줄의 복사 단추(접기 단추 왼쪽)
+const COPY = ' Copy '
 
 test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변 밑에 출력 카드를 그린다', async ($, on) => {
   const server = engine(on, [
@@ -531,9 +533,9 @@ test('데스크톱 앱의 카드는 접힌 채로 시작하고, 단추를 누른
   const second = desktop(prompt('둘째 질문'))
   const answer = desktop(reply('첫 답변'))
 
-  // 접힌 카드는 머리줄의 제목, 턴 번호, 전체 토큰 수, 금액, 단추만 보인다
-  const folded = ['engine', 'Input', '(turn 1)', '20,305 tok', '$0.0055', UNFOLD]
-  const foldedOutput = ['engine', 'Output', '(turn 1)', '300 tok', '$0.0060', UNFOLD]
+  // 접힌 카드는 머리줄의 제목, 턴 번호, 전체 토큰 수, 금액, 복사 단추, 접기 단추만 보인다
+  const folded = ['engine', 'Input', '(turn 1)', '20,305 tok', '$0.0055', COPY, UNFOLD]
+  const foldedOutput = ['engine', 'Output', '(turn 1)', '300 tok', '$0.0060', COPY, UNFOLD]
   expect(await textsOf($, first)).toEqual(folded)
   expect(await textsOf($, answer)).toEqual(foldedOutput)
 
@@ -545,7 +547,7 @@ test('데스크톱 앱의 카드는 접힌 채로 시작하고, 단추를 누른
   // 누른 카드만 펼쳐지고, 같은 턴의 출력 카드와 다른 턴의 카드는 접힌 채다
   expect((await textsOf($, first)).length).toBeGreaterThan(6)
   expect(await textsOf($, answer)).toEqual(foldedOutput)
-  expect(await textsOf($, second)).toHaveLength(6)
+  expect(await textsOf($, second)).toHaveLength(7)
 
   // 다시 누르면 접는다
   expect(await textsOf($, first, ['fold-input'])).toEqual(folded)
@@ -553,6 +555,39 @@ test('데스크톱 앱의 카드는 접힌 채로 시작하고, 단추를 누른
   // 데스크톱에서 펼친 상태는 터미널과 따로 간다
   await textsOf($, second, ['fold-input'])
   expect(await screen($, terminal(prompt('둘째 질문')))).toHaveLength(2)
+})
+
+test('데스크톱 앱의 복사 단추는 카드 내용을 터미널 표 모양의 글로 복사하고 잠시 Copied 를 보인다', async ($, on) => {
+  const server = engine(on, [priced('claude-opus-5-5', 15, 42100, 247, 2400)])
+  const copied: string[] = []
+  on('ui.copy', (_, e) => {
+    copied.push(e.text)
+
+    return { value: { isCopied: true as const } }
+  })
+  await run($, server, 't1', '첫 질문', '첫 답변', 1)
+
+  const ui = await $.ui.mount(desktop(prompt('첫 질문')))
+  // 단추를 누르면 복사 결과를 1.5초 동안 보인다(시계를 옮겨야 누름이 끝난다)
+  const pressed = ui.press({ key: 'copy-input' })
+  await server.clock.advance(500)
+  expect((await ui.find({ key: 'copy-input' }))?.text).toBe(' Copied ')
+  await server.clock.advance(1000)
+  await pressed
+  expect((await ui.find({ key: 'copy-input' }))?.text).toBe(COPY)
+  await ui.unmount()
+
+  expect(copied).toEqual([
+    [
+      'INPUT  (turn 1 / 1 request / cached 13:55:02)',
+      '                 TOK       %      COST',
+      'total         42,362           $0.0097',
+      'cache read    42,100   99.3%   $0.0084',
+      'cache write      247    0.5%   $0.0012   (5m)',
+      'uncached          15    0.0%   $0.0001',
+      'prompt            ~4'
+    ].join('\n')
+  ])
 })
 
 // 화면에 그려져야 하는 줄. 터미널은 열 정렬까지 글자 그대로 견주고, 데스크톱은 Text 의 글을 문서 차례대로 견준다
@@ -593,6 +628,7 @@ const DESKTOP_INPUT: unknown[] = [
   "Input",
   "(turn 1)",
   "$0.0096",
+  " Copy ",
   " − ",
   "2 requests / cached 13:55:02",
   "Total",
@@ -626,6 +662,7 @@ const DESKTOP_OUTPUT: unknown[] = [
   "Output",
   "(turn 1)",
   "$0.0084",
+  " Copy ",
   " − ",
   "Output",
   "Turn total",
@@ -639,6 +676,7 @@ const DESKTOP_UNPRICED_INPUT: unknown[] = [
   "Input",
   "(turn 1)",
   "$?",
+  " Copy ",
   " − ",
   "1 request / cached 13:55:02",
   "Total",
@@ -660,6 +698,7 @@ const DESKTOP_UNPRICED_OUTPUT: unknown[] = [
   "Output",
   "(turn 1)",
   "$?",
+  " Copy ",
   " − ",
   "Output",
   "100",
@@ -716,6 +755,7 @@ const OUTPUT_CARD: unknown[] = [
   "Output",
   "(turn 1)",
   "$0.0084",
+  " Copy ",
   " − ",
   "Output",
   "Turn total",

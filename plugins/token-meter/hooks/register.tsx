@@ -7,7 +7,8 @@ import type {
   RenderElement,
   RenderNode,
   RenderSurface,
-  StateDollar
+  StateDollar,
+  UiPressArgument
 } from 'claude-code'
 
 import type { Cost, Meter, Turn } from '../types'
@@ -402,16 +403,63 @@ const UNFOLD_ICON = '+'
 
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
+// 복사할 글: 터미널의 펼친 표와 같은 모양(머리줄, 열 제목, 표, 안내)의 글
+// 데스크톱 앱은 대화 기록의 Mod 글을 드래그로 고를 수 없어서 복사 단추로 이 글을 클립보드에 넣는다
+const sheetText = (sheet: Sheet) => {
+  const context = [...(sheet.turn ? [sheet.turn] : []), ...sheet.meta]
+  const hasShare = sheet.rows.some(row => row.share)
+  const hasCost = sheet.rows.some(row => row.cost)
+  const numbers = (row: Pick<Row, 'tokens' | 'share' | 'cost'>) =>
+    `${(row.tokens ?? '').padStart(TOKENS)}${(row.share ?? '').padStart(SHARE)}` +
+    (hasCost ? (row.cost ?? '').padStart(COST) : '')
+  const lines = [
+    `${sheet.title}${context.length ? `  (${context.join(' / ')})` : ''}`,
+    ' '.repeat(LABEL) + numbers({ tokens: 'TOK', share: hasShare ? '%' : '', cost: 'COST' }),
+    ...sheet.rows.map(row => row.label.padEnd(LABEL) + numbers(row) + (row.note ? `   ${row.note}` : '')),
+    ...(sheet.note ? [sheet.note] : [])
+  ]
+
+  return lines.map(line => line.trimEnd()).join('\n')
+}
+
+// 복사 단추의 글(Copy, 복사한 뒤 잠시 Copied 나 Copy failed)과 동작
+type Copy = { label: string; onCopy: (press: UiPressArgument) => unknown } | undefined
+
+// 데스크톱 카드 머리줄의 단추 칸: 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다(접기 단추와 복사 단추가 같은 모양)
+// 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다. 모서리는 테두리가 있을 때만 둥글게 그려져 투명한 테두리를 둔다.
+// round 는 단추의 호버 배경(radius - 2px)보다 4px 더 둥글어 호버 때 모양이 달라지므로, 기준 radius 그대로인 single 을 쓴다.
+// 테두리가 있는 칸에 데스크톱 앱이 넣는 기본 여백(md lg)으로 칸이 커지지 않게 여백은 0 으로 못박는다.
+// 고정폭 글꼴과 앞뒤 한 칸으로 글이 바뀌어도 칸 높이가 같다
+const chipOf = (
+  { Box, Button, Text }: ElementTable<'desktop'>,
+  key: string,
+  label: string,
+  onPress: (press: UiPressArgument) => unknown
+) => (
+  <Box
+    paddingX={0}
+    paddingY={0}
+    alignItems="center"
+    justifyContent="center"
+    borderStyle="single"
+    borderColor="rgba(128, 128, 128, 0)"
+    backgroundColor="rgba(128, 128, 128, 0.12)"
+  >
+    <Button key={key} plain onPress={onPress}>
+      <Text size="caption" mono color="permissionShimmer">
+        {` ${label} `}
+      </Text>
+    </Button>
+  </Box>
+)
+
 // 데스크톱 앱의 카드: prompt-translator 의 번역 카드처럼 입력 말풍선과 같은 반투명 회색 말풍선으로 오른쪽에 붙인다
 // 머리줄 왼쪽에 아이콘과 제목, 오른쪽 끝에 금액과 접기 단추를 두고, 펼치면 그 밑에 맥락(턴 번호 등) 한 줄과
 // 이름, 토큰 수, 비율, 비용, 메모를 열로 맞춘 표를 둔다
 // 열마다 세로 상자로 쌓아 숫자가 줄마다 오른쪽 끝을 맞추고, 빈칸은 공백 한 칸으로 줄 높이를 지킨다
 // 카드 폭에는 최대값을 줄 수 없어서, 왼쪽에 줄지 않는 빈 칸을 두어 오른쪽 80% 안에서 접히게 한다
-const desktopCardOf = (
-  { Box, Button, Svg, Text }: ElementTable<'desktop'>,
-  sheet: Sheet,
-  fold: Fold
-) => {
+const desktopCardOf = (ui: ElementTable<'desktop'>, sheet: Sheet, fold: Fold, copy: Copy) => {
+  const { Box, Svg, Text } = ui
   const toggle = sheet.isOpenable ? fold : undefined
   const isOpen = toggle === undefined || !toggle.isFolded
   const column = (values: string[], isNumber: boolean, isDim = !isNumber) => (
@@ -501,28 +549,9 @@ const desktopCardOf = (
                 {sheet.cost}
               </Text>
             )}
-            {toggle && (
-              // 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다. 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다.
-              // 모서리는 테두리가 있을 때만 둥글게 그려져 투명한 테두리를 둔다. round 는 단추의 호버 배경(radius - 2px)보다
-              // 4px 더 둥글어 호버 때 모양이 달라지므로, 기준 radius 그대로인 single 을 쓴다.
-              // 테두리가 있는 칸에 데스크톱 앱이 넣는 기본 여백(md lg)으로 칸이 커지지 않게 여백은 0 으로 못박는다.
-              // 고정폭 글꼴과 앞뒤 한 칸으로 빼기와 더하기가 바뀌어도 칸 크기가 같다
-              <Box
-                paddingX={0}
-                paddingY={0}
-                alignItems="center"
-                justifyContent="center"
-                borderStyle="single"
-                borderColor="rgba(128, 128, 128, 0)"
-                backgroundColor="rgba(128, 128, 128, 0.12)"
-              >
-                <Button key={`fold-${sheet.side}`} plain onPress={toggle.onToggle}>
-                  <Text size="caption" mono color="permissionShimmer">
-                    {` ${toggle.isFolded ? UNFOLD_ICON : FOLD_ICON} `}
-                  </Text>
-                </Button>
-              </Box>
-            )}
+            {sheet.isOpenable && copy && chipOf(ui, `copy-${sheet.side}`, copy.label, copy.onCopy)}
+            {toggle &&
+              chipOf(ui, `fold-${sheet.side}`, toggle.isFolded ? UNFOLD_ICON : FOLD_ICON, toggle.onToggle)}
           </Box>
         </Box>
         {isOpen && sheet.meta.length > 0 && (
@@ -546,9 +575,15 @@ const desktopCardOf = (
 }
 
 // 화면마다 그린다: 데스크톱 앱은 카드, 그 밖(터미널 등)은 고정 폭 열의 줄
-const sheetRow = (ui: ElementTable, surface: RenderSurface, sheet: Sheet, fold: Fold) =>
+const sheetRow = (
+  ui: ElementTable,
+  surface: RenderSurface,
+  sheet: Sheet,
+  fold: Fold,
+  copy?: Copy
+) =>
   surface === 'desktop'
-    ? desktopCardOf(ui as ElementTable<'desktop'>, sheet, fold)
+    ? desktopCardOf(ui as ElementTable<'desktop'>, sheet, fold, copy)
     : terminalSheetOf(ui, sheet, fold)
 
 // 엔진이 그린 답변(engine 노드) 바로 위에 줄을 끼워, 다른 Mod 가 맨 위에 붙인 줄(번역)보다 아래에 온다
@@ -621,6 +656,40 @@ const foldOf = (
       })
   }
 }
+
+// 데스크톱 카드 하나의 복사 단추: 누르면 카드 내용을 클립보드에 넣고, 1.5초 동안 결과(Copied, Copy failed)를 보인다
+const COPIED_FOR = 1500
+const copyOf = (
+  $: EngineInterface,
+  state: Meter,
+  turn: Turn | undefined,
+  sheet: Sheet
+): Copy => {
+  if (!turn) return undefined
+  const key = `${turn.id}:${sheet.side}`
+  const shown = state.copied?.key === key ? state.copied : undefined
+
+  return {
+    label: shown ? (shown.isCopied ? 'Copied' : 'Copy failed') : 'Copy',
+    onCopy: async press => {
+      const result = await $.ui.copy({ text: sheetText(sheet), surface: press.surface })
+      await change($, one => ({ ...one, copied: { key, isCopied: result.isCopied } }))
+      await $.clock.sleep(COPIED_FOR)
+      await change($, one => (one.copied?.key === key ? { ...one, copied: undefined } : one))
+    }
+  }
+}
+
+// 턴 하나의 입력이나 출력을 그 화면에 맞게 그린다(접기 단추와 데스크톱 카드의 복사 단추 포함)
+const rowFor = (
+  $: EngineInterface,
+  ui: ElementTable,
+  surface: RenderSurface,
+  state: Meter,
+  turn: Turn | undefined,
+  sheet: Sheet
+) =>
+  sheetRow(ui, surface, sheet, foldOf($, state, turn, sheet.side, surface), copyOf($, state, turn, sheet))
 
 export const register: Register = (on, options) => {
   ttlSetting = isTtl(options.cacheTtl) ? options.cacheTtl : undefined
@@ -773,12 +842,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {row}
-        {sheetRow(
-          ui,
-          e.surface,
-          inputSheetOf(text, turn, ttlOf(state)),
-          foldOf($, state, turn, 'input', e.surface)
-        )}
+        {rowFor($, ui, e.surface, state, turn, inputSheetOf(text, turn, ttlOf(state)))}
       </Box>
     )
   })
@@ -814,12 +878,7 @@ export const register: Register = (on, options) => {
     const tree = asked
       ? aboveEngine(row, reply => (
           <Box flexDirection="column">
-            {sheetRow(
-              ui,
-              e.surface,
-              inputSheetOf(asked.prompt, asked, ttl),
-              foldOf($, state, asked, 'input', e.surface)
-            )}
+            {rowFor($, ui, e.surface, state, asked, inputSheetOf(asked.prompt, asked, ttl))}
             {reply}
           </Box>
         ))
@@ -829,12 +888,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {tree}
-        {sheetRow(
-          ui,
-          e.surface,
-          outputSheetOf(ended, ttl),
-          foldOf($, state, ended, 'output', e.surface)
-        )}
+        {rowFor($, ui, e.surface, state, ended, outputSheetOf(ended, ttl))}
       </Box>
     )
   })

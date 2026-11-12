@@ -168,13 +168,27 @@ The screenshot shows both cards unfolded, with prompt-translator installed too, 
 
 A card starts folded, showing only its top line.  
 The top line holds the title, the turn number, the total tokens and the cost, the same as a folded terminal line (for example `Input (turn 3)  42,362 tok  $0.0105`).  
-At its right end is a fold button in a faint gray box.
+At its right end are a `Copy` button and a fold button, each in a faint gray box.
 
 - Press the plus button to unfold the card, showing a line of context and the table, and the button turns into a minus.  
   Press the minus button to fold it again.
 - Each card folds on its own.  
   The input card and the output card of the same turn fold apart too.
 - Folding or unfolding on one screen (the terminal or the desktop app) doesn't touch the other.
+- Press `Copy` to copy the card to the clipboard as text laid out like the unfolded terminal table.  
+  The button reads `Copied` (or `Copy failed`) for a moment and then turns back.  
+  The desktop app doesn't let you drag-select text a mod draws in the transcript, so this button is how to copy it.
+
+```plaintext
+INPUT  (turn 3 / 2 requests / cached 13:56:08)
+                 TOK       %      COST
+total         42,362           $0.0105
+cache read    42,100   99.3%   $0.0084
+cache write      247    0.5%   $0.0020   (1h)
+uncached          15    0.0%   $0.0001
+prompt           ~12
+context           15
+```
 
 ## Turning it off
 

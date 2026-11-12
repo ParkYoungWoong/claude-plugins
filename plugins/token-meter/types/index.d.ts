@@ -47,6 +47,8 @@ export type Meter = {
   count?: number
   opened?: string[]
   openedCards?: string[]
+  // 방금 복사 단추를 누른 데스크톱 카드와 그 결과(잠시 보였다가 지운다)
+  copied?: { key: string; isCopied: boolean }
 }
 
 declare module 'claude-code' {

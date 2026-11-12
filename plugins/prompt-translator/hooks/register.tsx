@@ -7,7 +7,8 @@ import type {
   RenderElement,
   RenderInput,
   RenderNode,
-  StateDollar
+  StateDollar,
+  UiPressArgument
 } from 'claude-code'
 
 import type { Entry } from '../types'
@@ -206,6 +207,38 @@ const TRANSLATE_ICON =
 const HIDE_ICON = '\u2212'
 const SHOW_ICON = '+'
 
+// 데스크톱 카드 머리줄의 단추 칸: 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다
+// (복사 단추와 숨기기 단추가 같은 모양이고, token-meter 카드의 단추와도 같다)
+// 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다. 모서리는 테두리가 있을 때만 둥글게 그려져
+// 투명한 테두리를 두고, 단추의 호버 배경과 같은 기준 radius 로 그리는 single 을 쓴다.
+// 테두리가 있는 칸에 데스크톱 앱이 넣는 기본 여백(md lg)으로 칸이 커지지 않게 여백은 0 으로 못박는다.
+// 고정폭 글꼴과 앞뒤 한 칸으로 글이 바뀌어도 칸 높이가 같다
+const chipOf = (
+  { Box, Button, Text }: ElementTable<'desktop'>,
+  key: string,
+  label: string,
+  onPress: (press: UiPressArgument) => unknown
+) => (
+  <Box
+    paddingX={0}
+    paddingY={0}
+    alignItems="center"
+    justifyContent="center"
+    borderStyle="single"
+    borderColor="rgba(128, 128, 128, 0)"
+    backgroundColor="rgba(128, 128, 128, 0.12)"
+  >
+    <Button key={key} plain onPress={onPress}>
+      <Text size="caption" mono color="permissionShimmer">
+        {` ${label} `}
+      </Text>
+    </Button>
+  </Box>
+)
+
+// 복사 단추를 누른 뒤 결과(Copied, Copy failed)를 보이는 시간
+const COPIED_FOR = 1500
+
 // 데스크톱 앱의 번역: 입력 말풍선 바로 밑에 같은 배경색의 말풍선으로 붙여 Claude 의 답변과 구분하고,
 // 머리줄 왼쪽에 아이콘과 언어, 오른쪽 끝에 숨기기 단추(빼기, 더하기)를 둔다(카드가 오른쪽에 붙어 있어 숨겨도 단추 자리가 그대로다)
 // 숨기면 머리줄만 남고, 번역 중이거나 실패하면 머리줄에 그 상태를 쓴다
@@ -213,11 +246,16 @@ const SHOW_ICON = '+'
 // 입력 말풍선은 글자색을 옅게 깐 배경이라 테마 키로는 같은 색을 낼 수 없어, 어두운 테마와 밝은 테마 모두에서
 // 말풍선과 비슷해지는 반투명 회색을 쓴다. 모서리는 테두리가 있을 때만 둥글게 그려져서 투명한 테두리를 둔다
 // 입력 말풍선 바로 밑에는 말풍선의 제어 아이콘(복사 등)이 놓이므로 위쪽 여백을 따로 주지 않고 그 밑에 붙인다
+// 데스크톱 앱은 대화 기록의 Mod 글을 드래그로 고를 수 없어서, 번역문은 복사 단추로 클립보드에 넣는다
 const desktopLineOf = (
-  { Box, Button, Svg, Text }: ElementTable<'desktop'>,
+  ui: ElementTable<'desktop'>,
   entry: Entry,
-  onToggle: () => unknown
+  onToggle: () => unknown,
+  onCopy: (press: UiPressArgument) => unknown
 ) => {
+  const { Box, Svg, Text } = ui
+  const copyLabel =
+    entry.copied === undefined ? 'Copy' : entry.copied ? 'Copied' : 'Copy failed'
   const isDone = entry.status === 'done'
   const status =
     entry.status === 'failed'
@@ -247,25 +285,9 @@ const desktopLineOf = (
             </Text>
           </Box>
           {isDone && (
-            // 누를 곳이 보이도록 단추를 옅은 회색 칸에 넣는다(token-meter 의 카드 접기 단추와 같다).
-            // 데스크톱 앱은 단추 안 글자의 배경색을 그리지 않는다. 모서리는 테두리가 있을 때만 둥글게 그려져
-            // 투명한 테두리를 두고, 단추의 호버 배경과 같은 기준 radius 로 그리는 single 을 쓴다.
-            // 테두리가 있는 칸에 데스크톱 앱이 넣는 기본 여백(md lg)으로 칸이 커지지 않게 여백은 0 으로 못박는다.
-            // 고정폭 글꼴과 앞뒤 한 칸으로 빼기와 더하기가 바뀌어도 칸 크기가 같다
-            <Box
-              paddingX={0}
-              paddingY={0}
-              alignItems="center"
-              justifyContent="center"
-              borderStyle="single"
-              borderColor="rgba(128, 128, 128, 0)"
-              backgroundColor="rgba(128, 128, 128, 0.12)"
-            >
-              <Button key="toggle" plain onPress={onToggle}>
-                <Text size="caption" mono color="permissionShimmer">
-                  {` ${entry.isHidden ? SHOW_ICON : HIDE_ICON} `}
-                </Text>
-              </Button>
+            <Box flexDirection="row" alignItems="center" gap="sm">
+              {chipOf(ui, 'copy', copyLabel, onCopy)}
+              {chipOf(ui, 'toggle', entry.isHidden ? SHOW_ICON : HIDE_ICON, onToggle)}
             </Box>
           )}
         </Box>
@@ -331,7 +353,14 @@ const lineFor = (
   entry: Entry
 ) => {
   const onToggle = () => patchEntry($, entry.id, one => ({ isHidden: !one.isHidden }))
-  if (e.surface === 'desktop') return desktopLineOf($.ui.resolve(e), entry, onToggle)
+  // 복사하고 결과를 잠시 보인 뒤 지운다
+  const onCopy = async (press: UiPressArgument) => {
+    const result = await $.ui.copy({ text: entry.translation ?? '', surface: press.surface })
+    await patchEntry($, entry.id, () => ({ copied: result.isCopied }))
+    await $.clock.sleep(COPIED_FOR)
+    await patchEntry($, entry.id, () => ({ copied: undefined }))
+  }
+  if (e.surface === 'desktop') return desktopLineOf($.ui.resolve(e), entry, onToggle, onCopy)
 
   return lineOf($.ui.resolve(e), entry, onToggle)
 }

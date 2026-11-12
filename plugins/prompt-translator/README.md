@@ -77,7 +77,7 @@ The desktop app doesn't run `/plugin`, so install it from the plugin settings.
    <img src="./images/desktop-en-3-language.png" alt="The Settings tab of Prompt translator with Translation language and Auto-translate limit" width="1022">
 
 5. In a new session, the translation shows in a card right under your prompt, aligned to the right like the prompt itself.  
-   The language is at the left of its top line, and a minus button in a faint gray box is at the right end.  
+   The language is at the left of its top line, and a `Copy` button and a minus button, each in a faint gray box, are at the right end.  
    Press the minus button to fold the card down to its top line, and the button turns into a plus. Press the plus to unfold it.  
    With token-meter installed too, its input token card shows under the translation card.
 
@@ -125,6 +125,8 @@ After switching to `日本語`, Korean prompts are translated into Japanese.
   A command row has no spot a mod can draw under, so the translation shows right above Claude's first reply to that command.
 - It also works in Claude Code in the Claude desktop app, where the translation is drawn as a card under the prompt.  
   Instead of `[-]`/`[+]`, the minus and plus button at the right end of the card's top line folds and unfolds it (the same button as on token-meter's cards).  
+  `Copy` next to it copies the translation to the clipboard, and the button reads `Copied` (or `Copy failed`) for a moment.  
+  The desktop app doesn't let you drag-select text a mod draws in the transcript, so this button is how to copy it.  
   A first prompt sent before the app attaches its view to the session is translated as soon as the view attaches.
 
 ## When it doesn't translate

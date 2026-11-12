@@ -8,6 +8,8 @@ export type Entry = {
   status: 'waiting' | 'pending' | 'done' | 'failed'
   reason?: string
   isHidden?: boolean
+  // 데스크톱 카드의 복사 단추를 방금 눌렀을 때 그 결과(잠시 보였다가 지운다)
+  copied?: boolean
   isForced?: boolean
   // 프롬프트 줄의 id: 화면이 그리는 글이 원문과 달라도 이것으로 짝을 맞춘다
   rowId?: string

@@ -77,7 +77,7 @@ claude plugin install prompt-translator --marketplace ParkYoungWoong/claude-plug
    <img src="./images/desktop-ko-3-language.png" alt="Translation language와 Auto-translate limit이 있는 Prompt translator의 설정 탭" width="1022">
 
 5. 새 세션에서 프롬프트를 보내면 입력 말풍선 바로 밑에 번역 카드가 오른쪽에 붙어 보입니다.  
-   머리줄 왼쪽에 번역 언어가, 오른쪽 끝에 옅은 회색 칸에 담긴 빼기 단추가 있습니다.  
+   머리줄 왼쪽에 번역 언어가, 오른쪽 끝에 옅은 회색 칸에 담긴 `Copy` 단추와 빼기 단추가 있습니다.  
    빼기 단추를 누르면 카드가 머리줄 한 줄로 접히고 단추가 더하기로 바뀝니다. 더하기를 누르면 다시 펼쳐집니다.  
    token-meter도 설치했다면 번역 카드 밑에 입력 토큰 카드가 함께 보입니다.
 
@@ -125,6 +125,8 @@ Mod가 바로 새 언어로 다시 로드됩니다.
   명령 줄에는 Mod가 그릴 자리가 없어서, 번역은 그 명령으로 시작한 Claude의 첫 답변 바로 위에 보입니다.
 - 클로드 데스크톱 앱의 Claude Code에서도 동작하며, 번역은 프롬프트 밑의 카드로 보입니다.  
   `[-]`/`[+]` 대신 카드 머리줄 오른쪽 끝의 빼기/더하기 단추로 접고 펼칩니다(token-meter 카드의 단추와 같습니다).  
+  그 옆의 `Copy`를 누르면 번역문을 클립보드에 복사하고, 단추가 잠시 `Copied`(실패하면 `Copy failed`)로 바뀝니다.  
+  데스크톱 앱은 대화 기록에서 Mod가 그린 글을 드래그로 고를 수 없어서 이 단추로 복사합니다.  
   앱이 세션 화면을 붙이기 전에 보낸 첫 프롬프트는 화면이 붙는 대로 번역합니다.
 
 ## 번역하지 않는 경우

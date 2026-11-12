@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
@@ -335,18 +335,35 @@ test(
   { options: { language: '日本語' } },
   async ($, on) => {
     engine(on, 'このバグを直して\n二行目')
+    const clock = mock.clock(on, { now: 0 })
+    const copied: string[] = []
+    on('ui.copy', (_, e) => {
+      copied.push(e.text)
+
+      return { value: { isCopied: true as const } }
+    })
 
     await submit($, '이 버그 고쳐 줘\n둘째 줄')
 
     const ui = await $.ui.mount({ ...row('이 버그 고쳐 줘\n둘째 줄'), surface: 'desktop' })
     // 낱말로 나누지 않고 한 덩어리로 그려 줄바꿈은 앱에 맡긴다
-    expect(await texts(ui)).toEqual(['engine', '日本語', HIDE.desktop, 'このバグを直して\n二行目'])
+    // 머리줄 오른쪽에 복사 단추와 숨기기 단추가 같은 모양의 칸으로 나란히 있다
+    expect(await texts(ui)).toEqual(['engine', '日本語', ' Copy ', HIDE.desktop, 'このバグを直して\n二行目'])
     expect(await ui.find({ type: 'Svg' })).toBeDefined()
     expect((await ui.find({ type: 'Text', text: HIDE.desktop }))?.props?.color).toBe('permissionShimmer')
 
+    // 데스크톱 앱은 Mod 글을 드래그로 고를 수 없어 복사 단추로 번역문을 복사하고, 결과를 1.5초 동안 보인다
+    const pressed = ui.press({ key: 'copy' })
+    await clock.advance(500)
+    expect((await ui.find({ key: 'copy' }))?.text).toBe(' Copied ')
+    await clock.advance(1000)
+    await pressed
+    expect((await ui.find({ key: 'copy' }))?.text).toBe(' Copy ')
+    expect(copied).toEqual(['このバグを直して\n二行目'])
+
     await ui.press({ key: 'toggle' })
     expect((await ui.find({ key: 'toggle' }))?.text).toBe(SHOW.desktop)
-    expect(await texts(ui)).toEqual(['engine', '日本語', SHOW.desktop])
+    expect(await texts(ui)).toEqual(['engine', '日本語', ' Copy ', SHOW.desktop])
     await ui.unmount()
   }
 )
