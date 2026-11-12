@@ -47,7 +47,7 @@ Fold a translation with `[-]` in front of it in the terminal, or with the minus 
 Shows the input tokens of each turn under its prompt, and the output tokens under the turn's last reply, each with what it costs at the API list price.  
 Cache reads and writes are priced apart, and each request is priced at its own model's rate even when the model changes mid-turn.  
 In the terminal, each shows as one folded line with the turn number, and `[+]` unfolds it into a table with token, share and cost columns lined up.  
-In the desktop app, the same numbers show as an input card and an output card at the right edge, and the minus button on each card folds it down to its title, turn number and cost.
+In the desktop app, the same numbers show as an input card and an output card at the right edge, and the minus button on each card folds it down to its title, turn number, token count and cost.
 
 ```plaintext
 > 이 버그를 고쳐 줄래

@@ -168,7 +168,8 @@ The screenshot is taken with prompt-translator installed too, so a translation c
 
 At the right end of each card's top line is a fold button in a faint gray box.
 
-- Press the minus button to fold that card's table away and keep only the title, the turn number and the cost on its top line.  
+- Press the minus button to fold that card's table away, leaving the title, the turn number, the total tokens and the cost on its top line.  
+  That is the same as a folded terminal line (for example `Input (turn 3)  42,362 tok  $0.0105`).  
   The button turns into a plus, which unfolds the card again.
 - Each card folds on its own.  
   The input card and the output card of the same turn fold apart too.

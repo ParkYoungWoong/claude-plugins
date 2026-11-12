@@ -490,6 +490,12 @@ const desktopCardOf = (
             )}
           </Box>
           <Box flexDirection="row" alignItems="center" gap="sm">
+            {!isOpen && (
+              // 접으면 표의 total 줄이 사라지므로 터미널의 접힌 줄처럼 머리줄에 전체 토큰 수를 둔다
+              <Text size="caption" tabular>
+                {`${sheet.tokens} tok`}
+              </Text>
+            )}
             {sheet.cost && (
               <Text size="caption" weight="semibold" tabular>
                 {sheet.cost}

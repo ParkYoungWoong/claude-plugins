@@ -535,8 +535,8 @@ test('데스크톱 앱의 카드는 접기 단추를 누른 카드만 머리줄�
   expect((await input.find({ key: 'fold-input' }))?.text).toBe(UNFOLD)
   await input.unmount()
 
-  // 누른 카드만 머리줄의 제목, 턴 번호, 금액, 단추가 남고, 같은 턴의 출력 카드와 다른 턴의 카드는 그대로다
-  expect(await textsOf($, first)).toEqual(['engine', 'Input', '(turn 1)', '$0.0055', UNFOLD])
+  // 누른 카드만 머리줄의 제목, 턴 번호, 전체 토큰 수, 금액, 단추가 남고, 같은 턴의 출력 카드와 다른 턴의 카드는 그대로다
+  expect(await textsOf($, first)).toEqual(['engine', 'Input', '(turn 1)', '20,305 tok', '$0.0055', UNFOLD])
   expect((await textsOf($, answer)).length).toBeGreaterThan(4)
   expect((await textsOf($, second)).length).toBeGreaterThan(4)
 
@@ -544,14 +544,14 @@ test('데스크톱 앱의 카드는 접기 단추를 누른 카드만 머리줄�
   const output = await $.ui.mount(answer)
   await output.press({ key: 'fold-output' })
   await output.unmount()
-  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '(turn 1)', '$0.0060', UNFOLD])
+  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '(turn 1)', '300 tok', '$0.0060', UNFOLD])
 
   // 다시 누르면 펼친다
   const again = await $.ui.mount(first)
   await again.press({ key: 'fold-input' })
   await again.unmount()
   expect((await textsOf($, first)).length).toBeGreaterThan(4)
-  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '(turn 1)', '$0.0060', UNFOLD])
+  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '(turn 1)', '300 tok', '$0.0060', UNFOLD])
 
   // 데스크톱에서 접은 상태는 터미널의 펼침 상태와 따로 간다: 터미널은 접힌 채로 시작한다
   expect(await screen($, terminal(prompt('둘째 질문')))).toHaveLength(2)
