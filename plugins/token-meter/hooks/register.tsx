@@ -296,11 +296,20 @@ const desktopCardOf = (
               </Text>
             )}
             {fold && (
-              <Button key="fold" plain onPress={fold.onToggle}>
-                <Text size="caption" color="permissionShimmer">
-                  {isFolded ? UNFOLD_ICON : FOLD_ICON}
-                </Text>
-              </Button>
+              // 글자만 있으면 누를 곳이 보이지 않아, 카드 배경보다 조금 짙은 둥근 칸에 넣는다.
+              // 글자를 고정폭 글꼴로 그려 -와 + 가 바뀌어도 칸 크기와 자리가 그대로다
+              <Box
+                paddingX="xs"
+                borderStyle="round"
+                borderColor="rgba(128, 128, 128, 0)"
+                backgroundColor="rgba(128, 128, 128, 0.15)"
+              >
+                <Button key="fold" plain onPress={fold.onToggle}>
+                  <Text size="caption" mono color="permissionShimmer">
+                    {isFolded ? UNFOLD_ICON : FOLD_ICON}
+                  </Text>
+                </Button>
+              </Box>
             )}
           </Box>
         </Box>
