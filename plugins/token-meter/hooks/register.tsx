@@ -242,15 +242,20 @@ type Card = { icon: string; title: string; total?: string; cells: Cell[]; note?:
 // 데스크톱 앱의 토큰 카드: prompt-translator 의 번역 카드처럼 입력 말풍선과 같은 반투명 회색 말풍선으로 오른쪽에 붙인다
 // 머리줄 왼쪽에 아이콘과 제목, 오른쪽 끝에 금액을 두고, 밑에는 이름, 토큰 수, 비용을 세 열로 맞춘 표를 둔다
 // 열마다 세로 상자로 쌓아 숫자가 줄마다 오른쪽 끝을 맞추고, 빈칸은 공백 한 칸으로 줄 높이를 지킨다
-// 접기: 머리줄 오른쪽 단추(Hide/Show)로 표와 안내를 숨기고 머리줄(제목과 금액)만 남긴다.
-// 접힌 상태는 모든 카드가 함께 쓰므로 한 번 접으면 지난 카드와 새 카드가 모두 접혀 있다
-type Fold = { isFolded: boolean; onToggle: () => unknown }
+// 접기: 머리줄 오른쪽 꺾쇠 단추로 카드마다 표와 안내를 숨기고 머리줄(제목과 금액)만 남긴다.
+// 아직 턴이 없는 입력 카드처럼 접을 곳이 없는 카드는 단추 없이 그린다
+type Fold = { isFolded: boolean; onToggle: () => unknown } | undefined
+
+// 단추 안에는 글자만 넣을 수 있어 Svg 대신 꺾쇠 글자를 쓴다: 펼친 카드는 위(접기), 접힌 카드는 아래(펼치기)
+const FOLD_ICON = '\u2303'
+const UNFOLD_ICON = '\u2304'
 
 const desktopCardOf = (
   { Box, Button, Svg, Text }: ElementTable<'desktop'>,
   card: Card,
-  { isFolded, onToggle }: Fold
+  fold: Fold
 ) => {
+  const isFolded = fold?.isFolded === true
   const column = (values: string[], isNumber: boolean) => (
     <Box flexDirection="column" alignItems={isNumber ? 'flex-end' : 'flex-start'}>
       {values.map(value => (
@@ -289,11 +294,13 @@ const desktopCardOf = (
                 {card.total}
               </Text>
             )}
-            <Button key="fold" plain onPress={onToggle}>
-              <Text size="caption" color="permissionShimmer">
-                {isFolded ? 'Show' : 'Hide'}
-              </Text>
-            </Button>
+            {fold && (
+              <Button key="fold" label={isFolded ? 'Show' : 'Hide'} plain onPress={fold.onToggle}>
+                <Text size="caption" color="permissionShimmer">
+                  {isFolded ? UNFOLD_ICON : FOLD_ICON}
+                </Text>
+              </Button>
+            )}
           </Box>
         </Box>
         {!isFolded && card.cells.length > 0 && (
@@ -455,11 +462,32 @@ const askedAbove = (
   return undefined
 }
 
-// 데스크톱 카드의 접힌 상태와 그것을 바꾸는 단추 동작
-const foldOf = ($: StateDollar, state: Meter): Fold => ({
-  isFolded: state.isFolded === true,
-  onToggle: () => change($, one => ({ ...one, isFolded: !one.isFolded }))
-})
+// 데스크톱 카드 하나(턴 id 와 input 또는 output)의 접힌 상태와 그것을 바꾸는 단추 동작
+const FOLDED = KEEP * 2
+const foldOf = (
+  $: StateDollar,
+  state: Meter,
+  turn: Turn | undefined,
+  side: 'input' | 'output'
+): Fold => {
+  if (!turn) return undefined
+  const key = `${turn.id}:${side}`
+
+  return {
+    isFolded: state.folded?.includes(key) === true,
+    onToggle: () =>
+      change($, one => {
+        const folded = one.folded ?? []
+
+        return {
+          ...one,
+          folded: folded.includes(key)
+            ? folded.filter(other => other !== key)
+            : [key, ...folded].slice(0, FOLDED)
+        }
+      })
+  }
+}
 
 export const register: Register = (on, options) => {
   ttlSetting = isTtl(options.cacheTtl) ? options.cacheTtl : undefined
@@ -603,7 +631,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {row}
-        {promptRows(ui, e.surface, text, turn, ttlOf(state), foldOf($, state))}
+        {promptRows(ui, e.surface, text, turn, ttlOf(state), foldOf($, state, turn, 'input'))}
       </Box>
     )
   })
@@ -616,7 +644,6 @@ export const register: Register = (on, options) => {
     const state = await read($, meter)
     const { turns } = state
     const ttl = ttlOf(state)
-    const fold = foldOf($, state)
     // 데스크톱 앱은 답변을 기록 줄 id 가 아니라 API 메시지 id 와 블록 번호(msg_...-t0)로, 그 블록의 글과 함께
     // 묻는다. 이 id 는 플러그인이 알 수 없어서, 그때는 줄의 글이 블록의 글과 같은지로 짝을 맞춘다
     const isBlock = BLOCK_ID.test(e.requestId)
@@ -640,7 +667,7 @@ export const register: Register = (on, options) => {
     const tree = asked
       ? aboveEngine(row, reply => (
           <Box flexDirection="column">
-            {promptRows(ui, e.surface, asked.prompt, asked, ttl, fold)}
+            {promptRows(ui, e.surface, asked.prompt, asked, ttl, foldOf($, state, asked, 'input'))}
             {reply}
           </Box>
         ))
@@ -650,7 +677,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {tree}
-        {outputRow(ui, e.surface, ended, ttl, fold)}
+        {outputRow(ui, e.surface, ended, ttl, foldOf($, state, ended, 'output'))}
       </Box>
     )
   })

@@ -276,11 +276,15 @@ const complete = ($: Engine, turnId: string, answer: string) =>
   $.turn.complete({ turnId, answer, durationMs: 1000, isAborted: false, reason: 'answer' })
 
 // 데스크톱 앱의 출력 카드: 출력 420 토큰, 앞의 두 요청을 더한 턴 비용
+// 카드 머리줄의 접기 단추(펼친 카드는 위 꺾쇠, 접힌 카드는 아래 꺾쇠)
+const FOLD = '\u2303'
+const UNFOLD = '\u2304'
+
 const OUTPUT_CARD = [
   'engine',
   'Output',
   '$0.0084',
-  'Hide',
+  FOLD,
   ...['Output', 'Turn total'],
   ...['420', ' '],
   ...['$0.0084', '$0.0165']
@@ -366,7 +370,7 @@ test('데스크톱 앱이 API 메시지 id 와 블록 번호로 물어도 블록
     requestId: 'msg_01A-t0',
     surface: 'desktop'
   } as const
-  expect((await textsOf($, first)).slice(0, 4)).toEqual(['Input', '$0.0081', 'Hide', 'Prompt'])
+  expect((await textsOf($, first)).slice(0, 4)).toEqual(['Input', '$0.0081', FOLD, 'Prompt'])
   const last = {
     ...reply('모두 통과했습니다.\n'),
     requestId: 'msg_01B-t0',
@@ -576,7 +580,7 @@ test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변
   const row = { ...prompt('첫 질문'), surface: 'desktop' } as const
 
   // 응답 전에는 어림한 프롬프트 토큰만
-  expect(await textsOf($, row)).toEqual(['engine', 'Input', 'Hide', 'Prompt', '~4'])
+  expect(await textsOf($, row)).toEqual(['engine', 'Input', FOLD, 'Prompt', '~4'])
 
   for (let index = 0; index < 2; index += 1) await step($, server, 't1', index)
   await complete($, 't1', '첫 답변')
@@ -586,7 +590,7 @@ test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변
     'engine',
     'Input',
     '$0.0096',
-    'Hide',
+    FOLD,
     ...['Prompt', 'Total input', 'Uncached', 'Cache read', 'Cache write 5m', 'Requests', 'Cached at'],
     ...['~4', '40,715', '15', '40,400 (99.2%)', '300', '2', '13:55:02'],
     ...[' ', ' ', '$0.0001', '$0.0081', '$0.0015', ' ', ' ']
@@ -595,7 +599,7 @@ test('데스크톱 앱은 프롬프트 밑에 입력 카드를, 마지막 답변
     'engine',
     'Output',
     '$0.0084',
-    'Hide',
+    FOLD,
     ...['Output', 'Turn total'],
     ...['420', ' '],
     ...['$0.0084', '$0.0180']
@@ -610,7 +614,7 @@ test('데스크톱 앱의 카드는 정가를 모르는 모델이면 비용 열 
   expect(await textsOf($, row)).toEqual([
     'engine',
     'Input',
-    'Hide',
+    FOLD,
     ...['Prompt', 'Total input', 'Uncached', 'Cache read', 'Request', 'Cached at'],
     ...['~4', '1,000', '1,000', '0 (0.0%)', '1', '13:55:02'],
     'No price for claude-future-9'
@@ -618,33 +622,47 @@ test('데스크톱 앱의 카드는 정가를 모르는 모델이면 비용 열 
   expect(await textsOf($, { ...reply('답했습니다.'), surface: 'desktop' })).toEqual([
     'engine',
     'Output',
-    'Hide',
+    FOLD,
     'Output',
     '100',
     'No price for claude-future-9'
   ])
 })
 
-test('데스크톱 앱의 카드는 Hide 를 누르면 모든 카드가 머리줄만 남고 Show 를 누르면 다시 펼친다', async ($, on) => {
-  const server = engine(on, [priced('claude-opus-5-5', 5, 20000, 300, 300)])
+test('데스크톱 앱의 카드는 접기 단추를 누른 카드만 머리줄만 남기고 다시 누르면 펼친다', async ($, on) => {
+  const server = engine(on, [
+    priced('claude-opus-5-5', 5, 20000, 300, 300),
+    priced('claude-opus-5-5', 5, 20000, 0, 100)
+  ])
   await run($, server, 't1', '첫 질문', '첫 답변', 1)
-  const row = { ...prompt('첫 질문'), surface: 'desktop' } as const
+  await run($, server, 't2', '둘째 질문', '둘째 답변', 1)
+  const first = { ...prompt('첫 질문'), surface: 'desktop' } as const
+  const second = { ...prompt('둘째 질문'), surface: 'desktop' } as const
   const answer = { ...reply('첫 답변'), surface: 'desktop' } as const
 
-  const input = await $.ui.mount(row)
-  expect((await input.find({ key: 'fold' }))?.text).toBe('Hide')
+  const input = await $.ui.mount(first)
+  expect((await input.find({ key: 'fold' }))?.text).toBe(FOLD)
   await input.press({ key: 'fold' })
-  expect((await input.find({ key: 'fold' }))?.text).toBe('Show')
+  expect((await input.find({ key: 'fold' }))?.text).toBe(UNFOLD)
   await input.unmount()
 
-  // 머리줄의 제목, 금액, 단추만 남고, 다른 카드도 함께 접힌다
-  expect(await textsOf($, row)).toEqual(['engine', 'Input', '$0.0055', 'Show'])
-  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '$0.0060', 'Show'])
+  // 누른 카드만 머리줄의 제목, 금액, 단추가 남고, 같은 턴의 출력 카드와 다른 턴의 카드는 그대로다
+  expect(await textsOf($, first)).toEqual(['engine', 'Input', '$0.0055', UNFOLD])
+  expect((await textsOf($, answer)).length).toBeGreaterThan(4)
+  expect((await textsOf($, second)).length).toBeGreaterThan(4)
 
+  // 출력 카드도 따로 접힌다
   const output = await $.ui.mount(answer)
   await output.press({ key: 'fold' })
   await output.unmount()
-  expect((await textsOf($, row)).length).toBeGreaterThan(4)
+  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '$0.0060', UNFOLD])
+
+  // 다시 누르면 펼친다
+  const again = await $.ui.mount(first)
+  await again.press({ key: 'fold' })
+  await again.unmount()
+  expect((await textsOf($, first)).length).toBeGreaterThan(4)
+  expect(await textsOf($, answer)).toEqual(['engine', 'Output', '$0.0060', UNFOLD])
 
   // 터미널의 한 줄은 접지 않는다
   expect((await textsOf($, { ...prompt('첫 질문'), surface: 'terminal' })).length).toBeGreaterThan(1)

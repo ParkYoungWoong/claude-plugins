@@ -114,8 +114,8 @@ Each card sits at the right edge, like your prompts.
 - Input card: `Input` and the input cost on top, then a table of prompt, context, total input, uncached, cache read (with its share), cache write, requests and the time it was cached, with the cost of each part.
 - Output card: `Output` and the output cost on top, then the output tokens and the turn total.
 
-Press `Hide` at the right of a card's top line to fold the table away and keep only the title and the cost.  
-Folding applies to every card, past and new. Press `Show` to unfold them.
+Press the chevron at the right of a card's top line to fold that card's table away and keep only the title and the cost.  
+Each card folds on its own. Press it again to unfold.
 
 ## Turning it off
 

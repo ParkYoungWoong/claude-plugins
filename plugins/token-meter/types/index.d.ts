@@ -36,8 +36,8 @@ export type Cost = { input: number; cacheRead: number; cacheWriteBase: number; o
 export type Step = { input: number; output: number }
 
 // isSubscription: 세션이 사용량 한도 창을 알려 온 구독 로그인(Claude Code 는 캐시를 1시간 동안 둔다)
-// isFolded: 데스크톱 카드를 접어 머리줄만 보이는 상태(모든 카드가 함께 쓴다)
-export type Meter = { last: Step | null; turns: Turn[]; isSubscription?: boolean; isFolded?: boolean }
+// folded: 접어 머리줄만 보이는 데스크톱 카드(턴 id:input 또는 턴 id:output)
+export type Meter = { last: Step | null; turns: Turn[]; isSubscription?: boolean; folded?: string[] }
 
 declare module 'claude-code' {
   interface PluginState {
